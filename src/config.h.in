@@ -1,0 +1,3 @@
+// the configured options and settings for PoseEstimation
+#define PoseEstimation_VERSION_MAJOR @PoseEstimation_VERSION_MAJOR@
+#define PoseEstimation_VERSION_MINOR @PoseEstimation_VERSION_MINOR@
