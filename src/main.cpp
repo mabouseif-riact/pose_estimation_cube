@@ -24,6 +24,8 @@
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/registration/icp.h>
 #include <pcl/segmentation/extract_clusters.h>
+#include <pcl/sample_consensus/sac_model_registration.h>
+#include <pcl/sample_consensus/sac_model.h>
 
 #include "src/config.h"
 
@@ -162,7 +164,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr segmentPlane(pcl::PointCloud<pcl::PointXYZ>:
 }
 
 
-pcl::PointCloud<pcl::PointXYZ>::Ptr RANSAC(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
+pcl::PointCloud<pcl::PointXYZ>::Ptr RANSACPrerejective(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
                                            pcl::PointCloud<pcl::PointXYZ>::ConstPtr target,
                                            pcl::PointCloud<pcl::Normal>::ConstPtr cloud_features,
                                            pcl::PointCloud<pcl::Normal>::ConstPtr target_featries)
@@ -195,6 +197,85 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr RANSAC(pcl::PointCloud<pcl::PointXYZ>::Const
 
 
 
+// pcl::PointCloud<pcl::PointXYZ>::Ptr RANSACVanilla(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, 
+//                                                   pcl::PointCloud<pcl::PointXYZ>::ConstPtr target)
+// {
+//     pcl::SampleConsensusModelRegistration<pcl::PointXYZ>::Ptr model_obj (new pcl::SampleConsensusModelRegistration<pcl::PointXYZ> (cloud));
+//     model_obj.setInputTarget(target);
+//     pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+//     pcl::RandomSampleConsensus<pcl::PointXYZ> ransac (model_obj);
+//     ransac.setDistanceThreshold (.01);
+//     ransac.computeModel();
+//     ransac.getInliers(inliers);
+
+//     if (inliers->indices.size () == 0)
+//     {
+//       std::cout << "Could not estimate a RANSACVanilla model for the given dataset." << std::endl;
+//       break;
+//     }
+
+//     // Extract the planar inliers from the input cloud
+//     pcl::ExtractIndices<pcl::PointXYZ> extract;
+//     extract.setInputCloud (target);
+//     extract.setIndices (inliers);
+//     extract.setNegative (true);
+//     extract.filter (*target);
+
+
+//     return target;
+
+// }
+
+
+pcl::PointCloud<pcl::PointXYZ>::Ptr RANSACVanilla(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, 
+                                                  pcl::PointCloud<pcl::PointXYZ>::ConstPtr target)
+
+{   
+    pcl::SampleConsensusModelRegistration<pcl::PointXYZ>::Ptr model_obj (new pcl::SampleConsensusModelRegistration<pcl::PointXYZ> (cloud));
+    Eigen::Matrix4f affine_mat = Eigen::Matrix4f::Zero(4, 4);
+    pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients());
+    pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
+    std::vector<int> v1, v2;
+    model_obj->estimateRigidTransformationSVD(*cloud, v1, *target, v2, affine_mat);
+    // Create the segmentation object
+
+
+}
+
+
+
+void ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster)
+{
+  // The Iterative Closest Point algorithm
+    int iterations = 200;
+    // time.tic ();
+    pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+    icp.setMaximumIterations (iterations);
+    icp.setInputSource (cloud_cluster);
+    icp.setInputTarget (object_aligned);
+    {
+        pcl::ScopeTime t("ICP Alignment");
+        icp.align (*cloud_cluster);
+    }
+
+    icp.setMaximumIterations (1);  // We set this variable to 1 for the next time we will call .align () function
+    // std::cout << "Applied " << iterations << " ICP iteration(s) in " << time.toc () << " ms" << std::endl;
+
+    if (icp.hasConverged ())
+    {
+        std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
+        std::cout << "\nICP transformation " << iterations << " : Scene -> Object" << std::endl;
+        auto transformation_matrix = icp.getFinalTransformation (); // .cast<double>();
+        // pcl::transformPointCloud(*object_aligned, *object_aligned, transformation_matrix);
+        // print4x4Matrix (transformation_matrix);
+    }
+    else
+    {
+        PCL_ERROR ("\nICP has not converged.\n");
+        // return (-1);
+    }
+
+}
 
 
 void passthroughFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, char* field, double min_val, double max_val)
@@ -264,13 +345,13 @@ int main(int argc, char* argv[])
 
 
     // if (pcl::io::loadOBJFile("/home/mohamed/drive/pointclouds/1.obj", *scene) == -1)
-    if (pcl::io::loadOBJFile("/home/mohamed/Downloads/3.obj", *scene) == -1)
+    if (pcl::io::loadOBJFile("../models/scene_1.obj", *scene) == -1)
     {
         PCL_ERROR("Could not load scene file! \n");
         return -1;
     }
 
-    if (pcl::io::loadOBJFile("/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/cube_edited.obj", *object) == -1)
+    if (pcl::io::loadOBJFile("../models/cube_points_1000.obj", *object) == -1)
     {
         PCL_ERROR("Could not load object file! \n");
         return -1;
@@ -286,8 +367,8 @@ int main(int argc, char* argv[])
     ///////////////////////////////////////////////////////
 
     // // // Passthrough filter for scene
-    passthroughFilter(scene, "x", -0.15, 0.15); // -0.075, 0.075   -0.3, 0.3
-    passthroughFilter(scene, "z", -0.5, -0.1); // -0.7, 0.7        -0.4, 0.4
+    passthroughFilter(scene, "x", -0.15, 0.15); // -0.075, 0.075   -0.3, 0.3 -0.15, 0.15
+    passthroughFilter(scene, "z", -0.5, -0.1); // -0.7, 0.7        -0.4, 0.4 -0.5, -0.1
 
 
     // // // Plane segmentation and removal
@@ -307,7 +388,7 @@ int main(int argc, char* argv[])
 
 
     // Scaling object model
-    scaleCloud(object, 0.0079);
+    scaleCloud(object, 0.079);
 
     // Move object model
     moveCloud(object, 'x', 1);
@@ -347,7 +428,8 @@ int main(int argc, char* argv[])
     pcl::ExtractIndices<pcl::PointXYZ> extract;
     extract.setInputCloud (scene);
 
-    pcl::visualization::PCLVisualizer::Ptr viewer = customColorVis(object);
+    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer ("3D Viewer with custom color"));
+    viewer->setBackgroundColor(0, 0, 0);
     for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
     {
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
@@ -365,35 +447,9 @@ int main(int argc, char* argv[])
         pcl::PointCloud<pcl::PointXYZ>::Ptr object_aligned(new pcl::PointCloud<pcl::PointXYZ>);
         *object_aligned = *object;
 
-           // The Iterative Closest Point algorithm
-          int iterations = 200;
-          // time.tic ();
-          pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-          icp.setMaximumIterations (iterations);
-          icp.setInputSource (cloud_cluster);
-          icp.setInputTarget (object_aligned);
-          {
-            pcl::ScopeTime t("Alignment");
-            icp.align (*cloud_cluster);
-          }
-
-          icp.setMaximumIterations (1);  // We set this variable to 1 for the next time we will call .align () function
-          // std::cout << "Applied " << iterations << " ICP iteration(s) in " << time.toc () << " ms" << std::endl;
-
-          if (icp.hasConverged ())
-        {
-            std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
-            std::cout << "\nICP transformation " << iterations << " : Scene -> Object" << std::endl;
-            auto transformation_matrix = icp.getFinalTransformation (); // .cast<double>();
-            // pcl::transformPointCloud(*object_aligned, *object_aligned, transformation_matrix);
-            // print4x4Matrix (transformation_matrix);
-        }
-        else
-        {
-            PCL_ERROR ("\nICP has not converged.\n");
-            return (-1);
-        }
-
+         
+        // ICP(object_aligned, cloud_cluster);
+        RANSACVanilla(object_aligned, cloud_cluster);
 
 
         int c1[3] = {255, 255, 0};
@@ -401,41 +457,6 @@ int main(int argc, char* argv[])
         addCloudToVisualizer(viewer, cloud_cluster, object_normals, false, c1);
         addCloudToVisualizer(viewer, object_aligned, object_normals, false, c2);
     }
-
-
-    ///////////////////////////////////////////////////////
-    ////////////////////// ICP ////////////////////////////
-    ///////////////////////////////////////////////////////
-
-
-    //    // The Iterative Closest Point algorithm
-    //   int iterations = 200;
-    //   // time.tic ();
-    //   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-    //   icp.setMaximumIterations (iterations);
-    //   icp.setInputSource (cloud_cluster);
-    //   icp.setInputTarget (object_aligned);
-    //   {
-    //     pcl::ScopeTime t("Alignment");
-    //     icp.align (*cloud_cluster);
-    //   }
-
-    //   icp.setMaximumIterations (1);  // We set this variable to 1 for the next time we will call .align () function
-    //   // std::cout << "Applied " << iterations << " ICP iteration(s) in " << time.toc () << " ms" << std::endl;
-
-    //   if (icp.hasConverged ())
-    // {
-    //     std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
-    //     std::cout << "\nICP transformation " << iterations << " : Scene -> Object" << std::endl;
-    //     auto transformation_matrix = icp.getFinalTransformation (); // .cast<double>();
-    //     pcl::transformPointCloud(*object_aligned, *object_aligned, transformation_matrix);
-    //     // print4x4Matrix (transformation_matrix);
-    // }
-    // else
-    // {
-    //     PCL_ERROR ("\nICP has not converged.\n");
-    //     return (-1);
-    // }
 
 
 
