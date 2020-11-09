@@ -5,6 +5,7 @@
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
 #include <pcl/features/vfh.h>
 #include <pcl/features/cvfh.h>
+#include <pcl/features/our_cvfh.h>
 
 
 pcl::PointCloud<pcl::Normal>::Ptr computeNormals(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, bool flip, double radius=0.03);
@@ -19,4 +20,7 @@ pcl::PointCloud<pcl::VFHSignature308>::Ptr computeVFH(pcl::PointCloud<pcl::Point
 
 
 pcl::PointCloud<pcl::VFHSignature308>::Ptr computeCVFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
+                                                       pcl::PointCloud<pcl::Normal>::ConstPtr normals);
+
+pcl::PointCloud<pcl::VFHSignature308>::Ptr computeOURCVFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
                                                        pcl::PointCloud<pcl::Normal>::ConstPtr normals);

@@ -13,7 +13,7 @@
 #include <pcl/registration/ia_ransac.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/extract_indices.h>
-
+#include <pcl/apps/3d_rec_framework/feature_wrapper/local/fpfh_local_estimator.h>
 
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -124,8 +124,25 @@ int main(int argc, char* argv[])
     std::cout << "CVFHS_scene size: " << CVFHS_scene->size() << std::endl;
     std::cout << "CVFHS_object size: " << CVFHS_object->size() << std::endl;
 
+    // OUR-CVFH computation
+    pcl::PointCloud<pcl::VFHSignature308>::Ptr OURCVFHS_scene = computeCVFH(scene, scene_normals);
+    pcl::PointCloud<pcl::VFHSignature308>::Ptr OURCVFHS_object = computeCVFH(object, object_normals);
+
+    std::cout << "OURCVFHS_scene size: " << OURCVFHS_scene->size() << std::endl;
+    std::cout << "OURCVFHS_object size: " << OURCVFHS_object->size() << std::endl;
+
+
+
     std::cout << "Scene cloud size: " << scene->size() << std::endl;
     std::cout << "Object cloud size: " << object->size() << std::endl;
+
+
+    double th = 100;
+    pcl::Correspondences corr;
+    pcl::registration::CorrespondenceEstimation<pcl::VFHSignature308,pcl::VFHSignature308> estim;
+    estim.setInputSource(vfhs_scene);
+    estim.setInputTarget(vfhs_object);
+    estim.determineCorrespondences(corr,th);
 
 
     // for (pcl::PointIndices indices: cluster_indices)

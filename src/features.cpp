@@ -56,30 +56,6 @@ pcl::PointCloud<pcl::Normal>::Ptr computeNormals(pcl::PointCloud<pcl::PointXYZ>:
 }
 
 
-
-pcl::PointCloud<pcl::VFHSignature308>::Ptr computeCVFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
-                                                       pcl::PointCloud<pcl::Normal>::ConstPtr normals)
-{
-    pcl::PointCloud<pcl::VFHSignature308>::Ptr cvfhs (new pcl::PointCloud<pcl::VFHSignature308> ());
-
-    // Create the VFH estimation class, and pass the input dataset+normals to it
-    pcl::CVFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::VFHSignature308> cvfh;
-    cvfh.setInputCloud(cloud);
-    cvfh.setInputNormals(normals);
-
-    // Create an empty kdtree representation, and pass it to the FPFH estimation object.
-    // Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
-    cvfh.setSearchMethod (tree);
-
-    // Compute the features
-    cvfh.compute (*cvfhs);
-
-    return cvfhs;
-}
-
-
-
 pcl::PointCloud<pcl::VFHSignature308>::Ptr computeVFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
                                                        pcl::PointCloud<pcl::Normal>::ConstPtr normals)
 {
@@ -101,6 +77,71 @@ pcl::PointCloud<pcl::VFHSignature308>::Ptr computeVFH(pcl::PointCloud<pcl::Point
     return vfhs;
 }
 
+
+pcl::PointCloud<pcl::VFHSignature308>::Ptr computeCVFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
+                                                       pcl::PointCloud<pcl::Normal>::ConstPtr normals)
+{
+
+
+    // You can further customize the segmentation step with "setClusterTolerance()" (to set the maximum 
+    // Euclidean distance between points in the same cluster) and "setMinPoints()". The size of the 
+    // output will be equal to the number of regions the object was divided in. Also, check the 
+    // functions "getCentroidClusters()" and "getCentroidNormalClusters()", you can use them to 
+    // get information about the centroids used to compute the different CVFH descriptors. 
+
+    pcl::PointCloud<pcl::VFHSignature308>::Ptr cvfhs (new pcl::PointCloud<pcl::VFHSignature308> ());
+
+    // Create the VFH estimation class, and pass the input dataset+normals to it
+    pcl::CVFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::VFHSignature308> cvfh;
+    cvfh.setInputCloud(cloud);
+    cvfh.setInputNormals(normals);
+
+    // Create an empty kdtree representation, and pass it to the FPFH estimation object.
+    // Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
+    cvfh.setSearchMethod (tree);
+    // Set the maximum allowable deviation of the normals,
+    // for the region segmentation step.
+    cvfh.setEPSAngleThreshold(5.0 / 180.0 * M_PI); // 5 degrees.
+    // Set the curvature threshold (maximum disparity between curvatures),
+    // for the region segmentation step.
+    cvfh.setCurvatureThreshold(1.0);
+    // Set to true to normalize the bins of the resulting histogram,
+    // using the total number of points. Note: enabling it will make CVFH
+    // invariant to scale just like VFH, but the authors encourage the opposite.
+    cvfh.setNormalizeBins(false);
+
+    // Compute the features
+    cvfh.compute (*cvfhs);
+
+    return cvfhs;
+}
+
+
+pcl::PointCloud<pcl::VFHSignature308>::Ptr computeOURCVFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
+                                                       pcl::PointCloud<pcl::Normal>::ConstPtr normals)
+{
+    // You can use the "getTransforms()" function to get the transformations aligning the cloud to the corresponding SGURF. 
+    
+    pcl::PointCloud<pcl::VFHSignature308>::Ptr ourcvfhs (new pcl::PointCloud<pcl::VFHSignature308> ());
+
+    // OUR-CVFH estimation object.
+    pcl::OURCVFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::VFHSignature308> ourcvfh;
+    ourcvfh.setInputCloud(cloud);
+    ourcvfh.setInputNormals(normals);
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
+    ourcvfh.setSearchMethod(tree);
+    ourcvfh.setEPSAngleThreshold(5.0 / 180.0 * M_PI); // 5 degrees.
+    ourcvfh.setCurvatureThreshold(1.0);
+    ourcvfh.setNormalizeBins(false);
+    // Set the minimum axis ratio between the SGURF axes. At the disambiguation phase,
+    // this will decide if additional Reference Frames need to be created, if ambiguous.
+    ourcvfh.setAxisRatio(0.8);
+
+    ourcvfh.compute(*ourcvfhs);
+
+    return ourcvfhs;
+}
 
 pcl::PointCloud<pcl::Histogram <135> >::Ptr computeROPS(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud)
 {
