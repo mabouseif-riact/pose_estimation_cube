@@ -1,4 +1,5 @@
-#include <Eigen/Core>
+// #include <Eigen/Core>
+#include <eigen3/Eigen/Core>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/common/transforms.h>

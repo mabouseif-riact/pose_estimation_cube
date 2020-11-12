@@ -13,7 +13,17 @@
 #include <pcl/registration/ia_ransac.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/extract_indices.h>
-#include <pcl/apps/3d_rec_framework/feature_wrapper/local/fpfh_local_estimator.h>
+#include <pcl/recognition/hv/hv_go.h>
+
+
+#include <flann/algorithms/dist.h>
+
+
+
+
+
+
+
 
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -60,7 +70,9 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    if (pcl::io::loadOBJFile("../models/cube_points_1000.obj", *object) == -1)
+    // if (pcl::io::loadOBJFile("../models/cube_points_1000.obj", *object) == -1)
+    // if (pcl::io::loadPLYFile("../models/cube_points_1000_new.ply", *object) == -1)
+    if (pcl::io::loadPCDFile("../data/views_/view_20.pcd", *object) == -1)
     {
         PCL_ERROR("Could not load object file! \n");
         return -1;
@@ -68,6 +80,11 @@ int main(int argc, char* argv[])
 
     std::cout << "Scene cloud loaded with "
               << scene->width * scene->height
+              << " data points from cube.pcd with the following fields: "
+              << std::endl;
+
+    std::cout << "Object cloud loaded with "
+              << object->width * object->height
               << " data points from cube.pcd with the following fields: "
               << std::endl;
 
@@ -87,7 +104,7 @@ int main(int argc, char* argv[])
     SORFilter(scene);
 
     // Scaling object model
-    scaleCloud(object, 0.079);
+    scaleCloud(object, 0.01); // 0.079
 
     // Move object model
     moveCloud(object, 'x', 1);
@@ -102,47 +119,52 @@ int main(int argc, char* argv[])
     pcl::PointCloud<pcl::Normal>::Ptr scene_normals = computeNormals(scene, false, 0.01);
     pcl::PointCloud<pcl::Normal>::Ptr object_normals = computeNormals(object, true, 0.015);
 
-    // FPFH computation
-    // pcl::PointCloud<pcl::FPFHSignature33>::Ptr scene_FPFH = computeFPFH  (scene, scene_normals);
-    // pcl::PointCloud<pcl::FPFHSignature33>::Ptr object_FPFH = computeFPFH (object, object_normals);
+    // // FPFH computation
+    // // pcl::PointCloud<pcl::FPFHSignature33>::Ptr scene_FPFH = computeFPFH  (scene, scene_normals);
+    // // pcl::PointCloud<pcl::FPFHSignature33>::Ptr object_FPFH = computeFPFH (object, object_normals);
 
-    // RoPs computation
-    // pcl::PointCloud<pcl::Histogram<135>>::Ptr scene_RoPs = computeROPS(scene);
-    // pcl::PointCloud<pcl::Histogram<135>>::Ptr object_RoPs = computeROPS(object);
+    // // RoPs computation
+    // // pcl::PointCloud<pcl::Histogram<135>>::Ptr scene_RoPs = computeROPS(scene);
+    // // pcl::PointCloud<pcl::Histogram<135>>::Ptr object_RoPs = computeROPS(object);
 
-    // VFH computation
-    pcl::PointCloud<pcl::VFHSignature308>::Ptr vfhs_scene = computeVFH(scene, scene_normals);
-    pcl::PointCloud<pcl::VFHSignature308>::Ptr vfhs_object = computeVFH(object, object_normals);
+    // // VFH computation
+    // pcl::PointCloud<pcl::VFHSignature308>::Ptr vfhs_scene = computeVFH(scene, scene_normals);
+    // pcl::PointCloud<pcl::VFHSignature308>::Ptr vfhs_object = computeVFH(object, object_normals);
 
-    std::cout << "vfhs_scene size: " << vfhs_scene->size() << std::endl;
-    std::cout << "vfhs_object size: " << vfhs_object->size() << std::endl;
+    // std::cout << "vfhs_scene size: " << vfhs_scene->size() << std::endl;
+    // std::cout << "vfhs_object size: " << vfhs_object->size() << std::endl;
 
-    // CVFH computation
-    pcl::PointCloud<pcl::VFHSignature308>::Ptr CVFHS_scene = computeCVFH(scene, scene_normals);
-    pcl::PointCloud<pcl::VFHSignature308>::Ptr CVFHS_object = computeCVFH(object, object_normals);
+    // // CVFH computation
+    // pcl::PointCloud<pcl::VFHSignature308>::Ptr CVFHS_scene = computeCVFH(scene, scene_normals);
+    // pcl::PointCloud<pcl::VFHSignature308>::Ptr CVFHS_object = computeCVFH(object, object_normals);
 
-    std::cout << "CVFHS_scene size: " << CVFHS_scene->size() << std::endl;
-    std::cout << "CVFHS_object size: " << CVFHS_object->size() << std::endl;
+    // std::cout << "CVFHS_scene size: " << CVFHS_scene->size() << std::endl;
+    // std::cout << "CVFHS_object size: " << CVFHS_object->size() << std::endl;
 
-    // OUR-CVFH computation
-    pcl::PointCloud<pcl::VFHSignature308>::Ptr OURCVFHS_scene = computeCVFH(scene, scene_normals);
-    pcl::PointCloud<pcl::VFHSignature308>::Ptr OURCVFHS_object = computeCVFH(object, object_normals);
+    // // OUR-CVFH computation
+    // pcl::PointCloud<pcl::VFHSignature308>::Ptr OURCVFHS_scene = computeOURCVFH(scene, scene_normals);
+    // pcl::PointCloud<pcl::VFHSignature308>::Ptr OURCVFHS_object = computeOURCVFH(object, object_normals);
 
-    std::cout << "OURCVFHS_scene size: " << OURCVFHS_scene->size() << std::endl;
-    std::cout << "OURCVFHS_object size: " << OURCVFHS_object->size() << std::endl;
-
-
-
-    std::cout << "Scene cloud size: " << scene->size() << std::endl;
-    std::cout << "Object cloud size: " << object->size() << std::endl;
+    // std::cout << "OURCVFHS_scene size: " << OURCVFHS_scene->size() << std::endl;
+    // std::cout << "OURCVFHS_object size: " << OURCVFHS_object->size() << std::endl;
 
 
-    double th = 100;
-    pcl::Correspondences corr;
-    pcl::registration::CorrespondenceEstimation<pcl::VFHSignature308,pcl::VFHSignature308> estim;
-    estim.setInputSource(vfhs_scene);
-    estim.setInputTarget(vfhs_object);
-    estim.determineCorrespondences(corr,th);
+
+    // std::cout << "Scene cloud size: " << scene->size() << std::endl;
+    // std::cout << "Object cloud size: " << object->size() << std::endl;
+
+
+    // double th = 100;
+    // pcl::Correspondences corr;
+    // pcl::registration::CorrespondenceEstimation<pcl::VFHSignature308,pcl::VFHSignature308> estim;
+    // estim.setInputSource(vfhs_scene);
+    // estim.setInputTarget(vfhs_object);
+    // estim.determineCorrespondences(corr,th);
+
+    int c1[3] = {255, 255, 0};
+    int c2[3] = {255, 0, 255};
+    addCloudToVisualizer(viewer, scene, object_normals, false, c1);
+    addCloudToVisualizer(viewer, object, object_normals, false, c2);
 
 
     // for (pcl::PointIndices indices: cluster_indices)
