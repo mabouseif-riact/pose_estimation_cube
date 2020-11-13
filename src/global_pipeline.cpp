@@ -11,6 +11,8 @@
 #include <thread>
 #include <flann/flann.h>
 #include <flann/io/hdf5.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/kdtree/impl/kdtree_flann.hpp>
 
 using namespace std::chrono_literals;
 
@@ -104,8 +106,12 @@ std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> openData
 int main(int argc, char* argv[])
 {
 
+    // Create visualizer
+    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer ("3D Viewer with custom color"));
+    viewer->setBackgroundColor(0, 0, 0);
 
-    std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
+    // std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
+    std::string base_dir = "/home/mohamed/drive/ros_ws/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation_cube";
     std::string pcd_dir_name = base_dir + "/data/views_";
     std::string poses_dir_name = base_dir + "/data/poses";
 
@@ -116,11 +122,12 @@ int main(int argc, char* argv[])
     //     std::cout << p << " \n" << std::endl;
 
 
-    // Create visualizer
-    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer ("3D Viewer with custom color"));
-    viewer->setBackgroundColor(0, 0, 0);
-
-
+    // Convert data into FLANN format
+    size_t n_train = poses_new.size(); // Could also be grabbed from the number of pcd files
+    int descriptor_size = 308; // VFH
+    flann::Matrix<float> data (new float[n_train * descriptor_size], n_train, descriptor_size);
+    int count = 0;
+    // flann::Matrix<float> data (new float[models.size () * models[0].second.size ()], models.size (), models[0].second.size ());
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
     for (const auto & entry : std::experimental::filesystem::directory_iterator(pcd_dir_name))
@@ -145,6 +152,7 @@ int main(int argc, char* argv[])
         pcl::removeNaNFromPointCloud(*cloud,*cloud, indices);
 
         pcl::PointCloud<pcl::Normal>::Ptr object_normals = computeNormals(cloud, true, 0.015);
+        pcl::PointCloud<CRH90>::Ptr object_CRH = computeCRH(cloud, object_normals);
         pcl::PointCloud<pcl::VFHSignature308>::Ptr vfhs_object = computeVFH(cloud, object_normals);
         // pcl::PointCloud<pcl::VFHSignature308>::Ptr OURCVFHS_object(new pcl::PointCloud<pcl::VFHSignature308>);
         // VFHS_object = computeOURCVFH(cloud, object_normals);
@@ -154,23 +162,39 @@ int main(int argc, char* argv[])
         // std::cout << "cloud size: " << OURCVFHS_object->width * OURCVFHS_object->height << std::endl;
         std::cout << "cloud size: " << vfhs_object->width * vfhs_object->height << std::endl;
         std::cout << "normals size: " << object_normals->width * object_normals->height << std::endl;
-        // std::cout << point[1].histogram[309] << std::endl;
 
-        // std::cout << CVFHS_object->points[0].histogram[0] << std::endl;
+        vfhs_object->points[0].histogram;
+
+        std::cout << "Histogram size: " << sizeof(vfhs_object->points[0].histogram) / sizeof(vfhs_object->points[0].histogram[0]) << std::endl;
+
+        for (int i = 0; i < 308; ++i)
+            data[count][i] = vfhs_object->points[0].histogram[i];
+
+        ++count;
+        std::cout << "Count: " << count << std::endl;
+
+
+
+        pcl::KdTreeFLANN<pcl::VFHSignature308> match_search;
+        match_search.setInputCloud (vfhs_object);
+        // int found_neighs = match_search.nearestKSearch (scene_descriptors->at (i), 
+        //                                                 1, 
+        //                                                 neigh_indices, 
+        //                                                 neigh_sqr_dists);
+
 
 
         // Visualization
-        viewer->addPointCloud<pcl::PointXYZ> (cloud, entry.path());
-        while (!viewer->wasStopped())
-        {
-            // passthroughFilter(scene, "x", static_cast<double>(a) / 10.0, 0.15);
-            viewer->spinOnce(100);
-            std::this_thread::sleep_for(50ms);
-            cv::waitKey(1);
-        }
+        // viewer->addPointCloud<pcl::PointXYZ> (cloud, entry.path());
+        // while (!viewer->wasStopped())
+        // {
+        //     viewer->spinOnce(100);
+        //     std::this_thread::sleep_for(50ms);
+        //     cv::waitKey(1);
+        // }
 
-        viewer->removePointCloud(entry.path());
-        viewer->resetStoppedFlag();
+        // viewer->removePointCloud(entry.path());
+        // viewer->resetStoppedFlag();
     }
 
 

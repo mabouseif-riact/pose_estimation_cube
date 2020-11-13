@@ -119,7 +119,7 @@ pcl::PointCloud<pcl::VFHSignature308>::Ptr computeCVFH(pcl::PointCloud<pcl::Poin
 
 
 pcl::PointCloud<pcl::VFHSignature308>::Ptr computeOURCVFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
-                                                       pcl::PointCloud<pcl::Normal>::ConstPtr normals)
+                                                          pcl::PointCloud<pcl::Normal>::ConstPtr normals)
 {
     // You can use the "getTransforms()" function to get the transformations aligning the cloud to the corresponding SGURF. 
     
@@ -171,3 +171,68 @@ pcl::PointCloud<pcl::Histogram <135> >::Ptr computeROPS(pcl::PointCloud<pcl::Poi
 
 
 
+pcl::PointCloud<CRH90>::Ptr computeCRH(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, 
+                                       const pcl::PointCloud<pcl::Normal>::ConstPtr normals)
+{
+    // Object for storing the CRH.
+    pcl::PointCloud<CRH90>::Ptr histogram(new pcl::PointCloud<CRH90>);
+
+    // CRH estimation object.
+    pcl::CRHEstimation<pcl::PointXYZ, pcl::Normal, CRH90> crh;
+    crh.setInputCloud(cloud);
+    crh.setInputNormals(normals);
+    Eigen::Vector4f centroid;
+    pcl::compute3DCentroid(*cloud, centroid);
+    crh.setCentroid(centroid);
+
+    // Compute the CRH.
+    crh.compute(*histogram);
+
+    return histogram;
+}
+
+
+void alignCRH(pcl::PointCloud<pcl::PointXYZ>::Ptr viewCloud, 
+              pcl::PointCloud<pcl::PointXYZ>::Ptr clusterCloud, 
+              const pcl::PointCloud<pcl::Normal>::ConstPtr viewNormals, 
+              const pcl::PointCloud<pcl::Normal>::ConstPtr clusterNormals)
+{
+
+// Objects for storing the CRHs of both.
+    pcl::PointCloud<CRH90>::Ptr viewCRH(new pcl::PointCloud<CRH90>);
+    pcl::PointCloud<CRH90>::Ptr clusterCRH(new pcl::PointCloud<CRH90>);
+    // Objects for storing the centroids.
+    Eigen::Vector4f viewCentroid;
+    Eigen::Vector4f clusterCentroid;
+
+    // Note: here you would compute the CRHs and centroids of both clusters.
+    // It has been omitted here for simplicity.
+    pcl::compute3DCentroid(*viewCloud, viewCentroid);
+    pcl::compute3DCentroid(*clusterCloud, clusterCentroid);
+    viewCRH = computeCRH(viewCloud, viewNormals);
+    clusterCRH = computeCRH(clusterCloud, clusterNormals);
+
+
+    // CRH alignment object.
+    pcl::CRHAlignment<pcl::PointXYZ, 90> alignment;
+    alignment.setInputAndTargetView(clusterCloud, viewCloud);
+    // CRHAlignment works with Vector3f, not Vector4f.
+    Eigen::Vector3f viewCentroid3f(viewCentroid[0], viewCentroid[1], viewCentroid[2]);
+    Eigen::Vector3f clusterCentroid3f(clusterCentroid[0], clusterCentroid[1], clusterCentroid[2]);
+    alignment.setInputAndTargetCentroids(clusterCentroid3f, viewCentroid3f);
+
+    // Compute the roll angle(s).
+    std::vector<float> angles;
+    alignment.computeRollAngle(*clusterCRH, *viewCRH, angles);
+
+    if (angles.size() > 0)
+    {
+        std::cout << "List of angles where the histograms correlate:" << std::endl;
+
+        for (int i = 0; i < angles.size(); i++)
+        {
+            std::cout << "\t" << angles.at(i) << " degrees." << std::endl;
+        }
+    }
+
+}

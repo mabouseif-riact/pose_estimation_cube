@@ -6,7 +6,10 @@
 #include <pcl/features/vfh.h>
 #include <pcl/features/cvfh.h>
 #include <pcl/features/our_cvfh.h>
+#include <pcl/features/crh.h>
+#include <pcl/recognition/crh_alignment.h>
 
+typedef pcl::Histogram<90> CRH90;
 
 pcl::PointCloud<pcl::Normal>::Ptr computeNormals(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, bool flip, double radius=0.03);
 
@@ -24,3 +27,11 @@ pcl::PointCloud<pcl::VFHSignature308>::Ptr computeCVFH(pcl::PointCloud<pcl::Poin
 
 pcl::PointCloud<pcl::VFHSignature308>::Ptr computeOURCVFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
                                                        pcl::PointCloud<pcl::Normal>::ConstPtr normals);
+
+pcl::PointCloud<CRH90>::Ptr computeCRH(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, 
+                					   const pcl::PointCloud<pcl::Normal>::ConstPtr normals);
+
+void alignCRH(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr viewCloud, 
+              const pcl::PointCloud<pcl::PointXYZ>::ConstPtr clusterCloud, 
+              const pcl::PointCloud<pcl::Normal>::ConstPtr viewNormals, 
+              const pcl::PointCloud<pcl::Normal>::ConstPtr clusterNormals);
