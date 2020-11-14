@@ -114,6 +114,9 @@ int main(int argc, char* argv[])
     std::string base_dir = "/home/mohamed/drive/ros_ws/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation_cube";
     std::string pcd_dir_name = base_dir + "/data/views_";
     std::string poses_dir_name = base_dir + "/data/poses";
+    std::string training_data_h5_file_name = base_dir + "/data/training_data.h5";
+    std::string kdtree_idx_file_name = base_dir + "/data/kdtree.idx";
+    std::string training_data_list_file_name = "training_data.list";
 
 
     std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> poses_new = openData(poses_dir_name + "/poses.txt");
@@ -165,9 +168,10 @@ int main(int argc, char* argv[])
 
         vfhs_object->points[0].histogram;
 
-        std::cout << "Histogram size: " << sizeof(vfhs_object->points[0].histogram) / sizeof(vfhs_object->points[0].histogram[0]) << std::endl;
+        int histogram_size = sizeof(vfhs_object->points[0].histogram) / sizeof(vfhs_object->points[0].histogram[0]);
+        std::cout << "Histogram size: " << histogram_size << std::endl;
 
-        for (int i = 0; i < 308; ++i)
+        for (int i = 0; i < histogram_size; ++i)
             data[count][i] = vfhs_object->points[0].histogram[i];
 
         ++count;
@@ -198,16 +202,67 @@ int main(int argc, char* argv[])
     }
 
 
+    // // Save data to disk (list of models)
+    // flann::save_to_file (data, training_data_h5_file_name, "training_data");
+    // // Build the tree index and save it to disk
+    // pcl::console::print_error ("Building the kdtree index (%s) for %d elements...\n", kdtree_idx_file_name.c_str (), (int)data.rows);
+    // flann::Index<flann::ChiSquareDistance<float>> index (data, flann::LinearIndexParams());
+    // //flann::Index<flann::ChiSquareDistance<float> > index (data, flann::KDTreeIndexParams (4));
+    // index.buildIndex();
+    // index.save(kdtree_idx_file_name);
+    // delete[] data.ptr();
 
-    // std::cout << poses_new.at(0).size() << std::endl;
-    // flann::Matrix<float> data (new float[poses_new.size () * poses_new[0].size()], poses_new.size () * poses_new[0].size());
-
-    // std::cout << CVFHS_object[0].histogram.size() << std::endl;
-
+    
+    flann::load_from_file (data, training_data_h5_file_name, "training_data");
+    flann::Index<flann::ChiSquareDistance<float> > index (data, flann::SavedIndexParams (kdtree_idx_file_name));
 
 
+    // std::vector<vfh_model> models;
+    flann::Matrix<int> k_indices;
+    flann::Matrix<float> k_distances;
+    // flann::Matrix<float> data;
+    int k = 3;
+    // Check if the data has already been saved to disk
+    if (!boost::filesystem::exists (training_data_h5_file_name))
+    {
+        pcl::console::print_error ("Could not find training data models files %s!\n", 
+        training_data_h5_file_name.c_str ());
+        return (-1);
+    }
+    else
+    {
+        flann::load_from_file (data, training_data_h5_file_name, "training_data");
+        pcl::console::print_highlight ("Training data found. Loaded %d VFH models from %s.\n", 
+             (int)data.rows, training_data_h5_file_name.c_str ());
+    }
+
+    // Check if the tree index has already been saved to disk
+    if (!boost::filesystem::exists (kdtree_idx_file_name))
+    {
+        pcl::console::print_error ("Could not find kd-tree index in file %s!", kdtree_idx_file_name.c_str ());
+        return (-1);
+    }
+    else
+    {
+        flann::Index<flann::ChiSquareDistance<float> > index_loaded (data, flann::SavedIndexParams (kdtree_idx_file_name));
+        index_loaded.buildIndex ();
+        // nearestKSearch (index, histogram, k, k_indices, k_distances);
+
+        // Query point
+        float test_model_histogram[308]; //  = vfhs_object->points[0].histogram
+        int histogram_size = 308;
+        flann::Matrix<float> p = flann::Matrix<float>(new float[descriptor_size], 1, descriptor_size);
+        memcpy (&p.ptr ()[0], &test_model_histogram[0], histogram_size * sizeof (float));
 
 
+        flann::Matrix<int> indices = flann::Matrix<int>(new int[k], 1, k);
+        flann::Matrix<float> distances = flann::Matrix<float>(new float[k], 1, k);
+        index_loaded.knnSearch (p, indices, distances, k, flann::SearchParams (512));
+        delete[] p.ptr ();
+
+        pcl::console::print_highlight ("Query performed.\n");
+
+    }
 
 
 

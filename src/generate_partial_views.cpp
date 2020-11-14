@@ -31,7 +31,7 @@ main(int argc, char** argv)
     vtkSmartPointer<vtkPolyData> object = mapper->GetInput();
 
 
-    int resolution = 150;
+    int resolution = 50; // 150
     int tesselation_level = 1;
     int use_vertices = true;
     // Virtual scanner object.
@@ -70,21 +70,32 @@ main(int argc, char** argv)
 
     // std::cout << views.at(0)->width * views.at(0)->height << std::endl;
 
-    std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
+    std::string base_dir = "/home/mohamed/turtle_test_link/pose_estimation_cube";
     std::string pcd_dir_name = base_dir + "/data/views_";
     std::string poses_dir_name = base_dir + "/data/poses";
-    // std::ofstream poses_file (poses_dir_name + "/poses.txt");
+    std::string CRH_dir_name = base_dir + "/data/CRH";
+    std::ofstream poses_file (poses_dir_name + "/poses.txt");
+    std::ofstream CRH_file (CRH_dir_name + "/CRH.txt");
 
 
-    // for (size_t i = 0; i < views.size(); ++i)
-    // {
-    //     pcl::io::savePCDFileBinary(pcd_dir_name + "/" + std::to_string(i+1) + ".pcd", *views.at(i));
-    //     // poses_file << poses.at(i) << "\n";
+    for (size_t i = 0; i < views.size(); ++i)
+    {
+        pcl::io::savePCDFileBinary(pcd_dir_name + "/" + std::to_string(i+1) + ".pcd", *views.at(i));
+        // poses_file << poses.at(i) << "\n";
+        pcl::PointCloud<pcl::Normal>::Ptr cloud_normals = computeNormals(views.at(i), true, 0.015);
+        pcl::PointCloud<CRH90>::Ptr cloud_CRH = computeCRH(views.at(i), cloud_normals);
 
-    //     poses_file << poses.at(i) << '\n';
+        poses_file << poses.at(i) << '\n';
 
-    // }
-    // poses_file.close();
+        std::cout << "Writing CRH.." << std::endl;
+
+        CRH_file << cloud_CRH->points[0].histogram << '\n';
+
+        std::cout << "Done writing CRH.." << std::endl;
+
+    }
+    poses_file.close();
+    CRH_file.close();
 
 
 
