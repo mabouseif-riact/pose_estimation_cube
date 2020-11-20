@@ -26,8 +26,9 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr RANSACPrerejective(pcl::PointCloud<pcl::Poin
     pcl::console::print_highlight ("Starting alignment...\n");
     const float leaf = 0.005f;
     pcl::PointCloud<pcl::PointXYZ>::Ptr object_aligned(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::SampleConsensusPrerejective<pcl::PointXYZ, pcl::PointXYZ, pcl::VFHSignature308> align;
+    // pcl::SampleConsensusPrerejective<pcl::PointXYZ, pcl::PointXYZ, pcl::VFHSignature308> align;
     // pcl::SampleConsensusPrerejective<pcl::PointXYZ, pcl::PointXYZ, pcl::Histogram<135>> align;
+    pcl::SampleConsensusPrerejective<pcl::PointXYZ, pcl::PointXYZ, pcl::Normal> align;
     align.setInputSource (cloud);
     align.setSourceFeatures (cloud_features);
     align.setInputTarget (target);

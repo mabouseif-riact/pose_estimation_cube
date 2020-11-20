@@ -6,6 +6,8 @@
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/console/time.h>
 #include <pcl/common/common_headers.h>
+#include <experimental/filesystem>
+#include <fstream>      // std::ofstream
 
 
 
@@ -18,3 +20,9 @@ void moveCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, const char axis, doubl
 void SORFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 
 std::vector<pcl::PointIndices> clustering(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+
+int PCDIndex(std::string path);
+
+std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> openData(std::string fileToOpen);
+
+std::vector<std::vector<float>> readCRH(std::string file_name);

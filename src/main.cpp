@@ -63,6 +63,24 @@ int main(int argc, char* argv[])
     pcl::PointCloud<pcl::PointXYZ>::Ptr object(new pcl::PointCloud<pcl::PointXYZ>);
 
 
+
+
+    if (pcl::io::loadPLYFile("../models/cube.ply", *object) == -1)
+    {
+        PCL_ERROR("Could not load PLY file! \n");
+        return -1;
+    }
+
+
+    // Scaling object model
+    scaleCloud(object, 0.08);
+
+
+    std::string dst = "../models/cube_scaled_down.ply";
+    pcl::io::savePLYFileBinary(dst, *object);
+    return -1;
+
+
     // if (pcl::io::loadOBJFile("/home/mohamed/drive/pointclouds/1.obj", *scene) == -1)
     if (pcl::io::loadOBJFile("../models/scene_1.obj", *scene) == -1)
     {
@@ -72,7 +90,7 @@ int main(int argc, char* argv[])
 
     // if (pcl::io::loadOBJFile("../models/cube_points_1000.obj", *object) == -1)
     // if (pcl::io::loadPLYFile("../models/cube_points_1000_new.ply", *object) == -1)
-    if (pcl::io::loadPCDFile("../data/views_/view_20.pcd", *object) == -1)
+    if (pcl::io::loadPCDFile("../data/views_/17.pcd", *object) == -1)
     {
         PCL_ERROR("Could not load object file! \n");
         return -1;
@@ -104,7 +122,7 @@ int main(int argc, char* argv[])
     SORFilter(scene);
 
     // Scaling object model
-    scaleCloud(object, 0.01); // 0.079
+    scaleCloud(object, 1); // 0.079
 
     // Move object model
     moveCloud(object, 'x', 1);
@@ -161,10 +179,10 @@ int main(int argc, char* argv[])
     // estim.setInputTarget(vfhs_object);
     // estim.determineCorrespondences(corr,th);
 
-    int c1[3] = {255, 255, 0};
-    int c2[3] = {255, 0, 255};
-    addCloudToVisualizer(viewer, scene, object_normals, false, c1);
-    addCloudToVisualizer(viewer, object, object_normals, false, c2);
+    // int c1[3] = {255, 255, 0};
+    // int c2[3] = {255, 0, 255};
+    // addCloudToVisualizer(viewer, scene, object_normals, false, c1);
+    // addCloudToVisualizer(viewer, object, object_normals, false, c2);
 
 
     // for (pcl::PointIndices indices: cluster_indices)
@@ -186,8 +204,8 @@ int main(int argc, char* argv[])
 
     //     auto object_aligned =  RANSACPrerejective(cloud_cluster,
     //                                        object,
-    //                                        vfhs_scene,
-    //                                        vfhs_object);
+    //                                        scene_normals,
+    //                                        object_normals);
 
     //     int c1[3] = {255, 255, 0};
     //     int c2[3] = {255, 0, 255};
@@ -199,50 +217,58 @@ int main(int argc, char* argv[])
 
 
 
-    // for (pcl::PointIndices indices: cluster_indices)
-    // {
+    for (pcl::PointIndices indices: cluster_indices)
+    {
 
-    //     pcl::PointIndices::Ptr cluster_point_indices(new  pcl::PointIndices(indices)); // This conversion is because of PCL's shared boost ptr
-    //     std::cout << "Cluster indices: " << cluster_point_indices->indices.size() << std::endl;
+        pcl::PointIndices::Ptr cluster_point_indices(new  pcl::PointIndices(indices)); // This conversion is because of PCL's shared boost ptr
+        std::cout << "Cluster indices: " << cluster_point_indices->indices.size() << std::endl;
 
-    //     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
-    //     pcl::PointCloud<pcl::VFHSignature308>::Ptr cloud_cluster_features (new pcl::PointCloud<pcl::VFHSignature308>);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::PointCloud<pcl::Normal>::Ptr cloud_cluster_features (new pcl::PointCloud<pcl::Normal>);
 
-    //     {
-    //     pcl::ExtractIndices<pcl::PointXYZ> extract(false);
-    //     extract.setInputCloud(scene);
-    //     extract.setIndices(cluster_point_indices);
-    //     extract.filter(*cloud_cluster);
-    //     }
+        {
+        pcl::ExtractIndices<pcl::PointXYZ> extract(false);
+        extract.setInputCloud(scene);
+        extract.setIndices(cluster_point_indices);
+        extract.filter(*cloud_cluster);
+        }
 
-    //     std::cout << "Cloud cluster has " << cloud_cluster->size() << " points" << std::endl;
+        std::cout << "Cloud cluster has " << cloud_cluster->size() << " points" << std::endl;
 
-    //     {
-    //     pcl::ExtractIndices<pcl::VFHSignature308> extract(false);
-    //     extract.setInputCloud(vfhs_scene);
-    //     extract.setIndices(cluster_point_indices);
-    //     extract.filter(*cloud_cluster_features);
-    //     }
-    //     std::cout << "cloud_cluster_features has " << cloud_cluster_features->size() << " points" << std::endl;
-
-    //     std::cout << "object_features has " << vfhs_object->size() << " points" << std::endl;
+        {
+        pcl::ExtractIndices<pcl::Normal> extract(false);
+        extract.setInputCloud(scene_normals);
+        extract.setIndices(cluster_point_indices);
+        extract.filter(*cloud_cluster_features);
+        }
+        std::cout << "cloud_cluster_features has " << cloud_cluster_features->size() << " points" << std::endl;
 
 
-    //     double th = 100;
-    //     pcl::Correspondences corr;
-    //     pcl::registration::CorrespondenceEstimation<pcl::VFHSignature308,pcl::VFHSignature308> estim;
-    //     estim.setInputSource(vfhs_scene);
-    //     estim.setInputTarget(vfhs_object);
-    //     estim.determineCorrespondences(corr,th);
+        // auto object_aligned =  RANSACPrerejective(cloud_cluster,
+        //                            object,
+        //                            cloud_cluster_features,
+        //                            object_normals);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr object_aligned(new pcl::PointCloud<pcl::PointXYZ>);
+        *object_aligned = *object;
+        ICP(object_aligned, cloud_cluster);
 
-    //     int c1[3] = {255, 255, 0};
-    //     int c2[3] = {255, 0, 255};
-    //     addCloudToVisualizer(viewer, cloud_cluster, object_normals, false, c1);
-    //     addCloudToVisualizer(viewer, object, object_normals, false, c2);
 
-    //     viewer->addCorrespondences<pcl::PointXYZ> (scene, object, corr, "Correspondences");
+        double th = 100;
+        pcl::Correspondences corr;
+        pcl::registration::CorrespondenceEstimation<pcl::Normal,pcl::Normal> estim;
+        estim.setInputSource(cloud_cluster_features);
+        estim.setInputTarget(object_normals);
+        estim.determineCorrespondences(corr,th);
 
-    // }
+        int c1[3] = {255, 255, 0};
+        int c2[3] = {255, 0, 255};
+        addCloudToVisualizer(viewer, cloud_cluster, object_normals, false, c1);
+        addCloudToVisualizer(viewer, object, object_normals, false, c2);
+        addCloudToVisualizer(viewer, object_aligned, object_normals, false, c2);
+
+        viewer->addCorrespondences<pcl::PointXYZ> (scene, object, corr, "Correspondences");
+
+    }
 
 
     int a = 0;
@@ -261,7 +287,6 @@ int main(int argc, char* argv[])
         viewer->spinOnce(100);
         std::this_thread::sleep_for(50ms);
         cv::waitKey(1);
-
     }
 
 

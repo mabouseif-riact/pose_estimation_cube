@@ -83,11 +83,11 @@ pcl::PointCloud<pcl::VFHSignature308>::Ptr computeCVFH(pcl::PointCloud<pcl::Poin
 {
 
 
-    // You can further customize the segmentation step with "setClusterTolerance()" (to set the maximum 
-    // Euclidean distance between points in the same cluster) and "setMinPoints()". The size of the 
-    // output will be equal to the number of regions the object was divided in. Also, check the 
-    // functions "getCentroidClusters()" and "getCentroidNormalClusters()", you can use them to 
-    // get information about the centroids used to compute the different CVFH descriptors. 
+    // You can further customize the segmentation step with "setClusterTolerance()" (to set the maximum
+    // Euclidean distance between points in the same cluster) and "setMinPoints()". The size of the
+    // output will be equal to the number of regions the object was divided in. Also, check the
+    // functions "getCentroidClusters()" and "getCentroidNormalClusters()", you can use them to
+    // get information about the centroids used to compute the different CVFH descriptors.
 
     pcl::PointCloud<pcl::VFHSignature308>::Ptr cvfhs (new pcl::PointCloud<pcl::VFHSignature308> ());
 
@@ -121,8 +121,8 @@ pcl::PointCloud<pcl::VFHSignature308>::Ptr computeCVFH(pcl::PointCloud<pcl::Poin
 pcl::PointCloud<pcl::VFHSignature308>::Ptr computeOURCVFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
                                                           pcl::PointCloud<pcl::Normal>::ConstPtr normals)
 {
-    // You can use the "getTransforms()" function to get the transformations aligning the cloud to the corresponding SGURF. 
-    
+    // You can use the "getTransforms()" function to get the transformations aligning the cloud to the corresponding SGURF.
+
     pcl::PointCloud<pcl::VFHSignature308>::Ptr ourcvfhs (new pcl::PointCloud<pcl::VFHSignature308> ());
 
     // OUR-CVFH estimation object.
@@ -131,8 +131,9 @@ pcl::PointCloud<pcl::VFHSignature308>::Ptr computeOURCVFH(pcl::PointCloud<pcl::P
     ourcvfh.setInputNormals(normals);
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
     ourcvfh.setSearchMethod(tree);
-    ourcvfh.setEPSAngleThreshold(5.0 / 180.0 * M_PI); // 5 degrees.
-    ourcvfh.setCurvatureThreshold(1.0);
+    // ourcvfh.setClusterTolerance (0.015f); //1.5cm, three times the leaf size
+    ourcvfh.setEPSAngleThreshold(5.0 / 180.0 * M_PI); // 5 degrees. // or 0.13f
+    ourcvfh.setCurvatureThreshold(1.0); // 0.025f
     ourcvfh.setNormalizeBins(false);
     // Set the minimum axis ratio between the SGURF axes. At the disambiguation phase,
     // this will decide if additional Reference Frames need to be created, if ambiguous.
@@ -171,7 +172,7 @@ pcl::PointCloud<pcl::Histogram <135> >::Ptr computeROPS(pcl::PointCloud<pcl::Poi
 
 
 
-pcl::PointCloud<CRH90>::Ptr computeCRH(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, 
+pcl::PointCloud<CRH90>::Ptr computeCRH(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
                                        const pcl::PointCloud<pcl::Normal>::ConstPtr normals)
 {
     // Object for storing the CRH.
@@ -192,11 +193,11 @@ pcl::PointCloud<CRH90>::Ptr computeCRH(const pcl::PointCloud<pcl::PointXYZ>::Con
 }
 
 
-void alignCRH(pcl::PointCloud<pcl::PointXYZ>::Ptr viewCloud, 
-              pcl::PointCloud<pcl::PointXYZ>::Ptr clusterCloud, 
-              const pcl::PointCloud<pcl::Normal>::ConstPtr viewNormals, 
-              const pcl::PointCloud<pcl::Normal>::ConstPtr clusterNormals)
-{
+std::vector<float> alignCRHAngles(pcl::PointCloud<pcl::PointXYZ>::Ptr viewCloud,
+                          pcl::PointCloud<pcl::PointXYZ>::Ptr clusterCloud,
+                          pcl::PointCloud<pcl::Normal>::Ptr viewNormals,
+                          pcl::PointCloud<pcl::Normal>::Ptr clusterNormals)
+            {
 
 // Objects for storing the CRHs of both.
     pcl::PointCloud<CRH90>::Ptr viewCRH(new pcl::PointCloud<CRH90>);
@@ -227,12 +228,62 @@ void alignCRH(pcl::PointCloud<pcl::PointXYZ>::Ptr viewCloud,
 
     if (angles.size() > 0)
     {
+        std::cout << "Number of angles where the histograms correlate: " << angles.size() << std::endl;
         std::cout << "List of angles where the histograms correlate:" << std::endl;
 
         for (int i = 0; i < angles.size(); i++)
         {
             std::cout << "\t" << angles.at(i) << " degrees." << std::endl;
         }
+
+        return angles;
     }
 
+    exit(EXIT_FAILURE);
+}
+
+
+std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>
+alignCRHTransforms(pcl::PointCloud<pcl::PointXYZ>::Ptr viewCloud,
+                  pcl::PointCloud<pcl::PointXYZ>::Ptr clusterCloud,
+                  pcl::PointCloud<pcl::Normal>::Ptr viewNormals,
+                  pcl::PointCloud<pcl::Normal>::Ptr clusterNormals)
+    {
+
+    // Objects for storing the CRHs of both.
+    pcl::PointCloud<CRH90>::Ptr viewCRH(new pcl::PointCloud<CRH90>);
+    pcl::PointCloud<CRH90>::Ptr clusterCRH(new pcl::PointCloud<CRH90>);
+    // Objects for storing the centroids.
+    Eigen::Vector4f viewCentroid;
+    Eigen::Vector4f clusterCentroid;
+
+    // Note: here you would compute the CRHs and centroids of both clusters.
+    // It has been omitted here for simplicity.
+    pcl::compute3DCentroid(*viewCloud, viewCentroid);
+    pcl::compute3DCentroid(*clusterCloud, clusterCentroid);
+    viewCRH = computeCRH(viewCloud, viewNormals);
+    clusterCRH = computeCRH(clusterCloud, clusterNormals);
+
+
+    // CRH alignment object.
+    pcl::CRHAlignment<pcl::PointXYZ, 90> alignment;
+    alignment.setInputAndTargetView(viewCloud, clusterCloud);
+    // CRHAlignment works with Vector3f, not Vector4f.
+    Eigen::Vector3f viewCentroid3f(viewCentroid[0], viewCentroid[1], viewCentroid[2]);
+    Eigen::Vector3f clusterCentroid3f(clusterCentroid[0], clusterCentroid[1], clusterCentroid[2]);
+    alignment.setInputAndTargetCentroids(viewCentroid3f, clusterCentroid3f);
+
+    // Compute the roll angle(s).
+    std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> transforms;
+    alignment.align(*viewCRH, *clusterCRH);
+    alignment.getTransforms(transforms);
+
+    if (transforms.size() > 0)
+    {
+        std::cout << "Number of transforms where the histograms correlate: " << transforms.size() << std::endl;
+
+        return transforms;
+    }
+
+    exit(EXIT_FAILURE);
 }

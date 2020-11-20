@@ -9,9 +9,10 @@
 #include <pcl/features/crh.h>
 #include <pcl/recognition/crh_alignment.h>
 
+
 typedef pcl::Histogram<90> CRH90;
 
-pcl::PointCloud<pcl::Normal>::Ptr computeNormals(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, bool flip, double radius=0.03);
+pcl::PointCloud<pcl::Normal>::Ptr computeNormals(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, bool flip, double radius);
 
 pcl::PointCloud<pcl::FPFHSignature33>::Ptr computeFPFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
                                                        pcl::PointCloud<pcl::Normal>::ConstPtr normals);
@@ -28,10 +29,16 @@ pcl::PointCloud<pcl::VFHSignature308>::Ptr computeCVFH(pcl::PointCloud<pcl::Poin
 pcl::PointCloud<pcl::VFHSignature308>::Ptr computeOURCVFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
                                                        pcl::PointCloud<pcl::Normal>::ConstPtr normals);
 
-pcl::PointCloud<CRH90>::Ptr computeCRH(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, 
+pcl::PointCloud<CRH90>::Ptr computeCRH(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
                 					   const pcl::PointCloud<pcl::Normal>::ConstPtr normals);
 
-void alignCRH(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr viewCloud, 
-              const pcl::PointCloud<pcl::PointXYZ>::ConstPtr clusterCloud, 
-              const pcl::PointCloud<pcl::Normal>::ConstPtr viewNormals, 
-              const pcl::PointCloud<pcl::Normal>::ConstPtr clusterNormals);
+std::vector<float> alignCRHAngles(pcl::PointCloud<pcl::PointXYZ>::Ptr viewCloud,
+                                  pcl::PointCloud<pcl::PointXYZ>::Ptr clusterCloud,
+                                  pcl::PointCloud<pcl::Normal>::Ptr viewNormals,
+                                  pcl::PointCloud<pcl::Normal>::Ptr clusterNormals);
+
+std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>
+alignCRHTransforms(pcl::PointCloud<pcl::PointXYZ>::Ptr viewCloud,
+                  pcl::PointCloud<pcl::PointXYZ>::Ptr clusterCloud,
+                  pcl::PointCloud<pcl::Normal>::Ptr viewNormals,
+                  pcl::PointCloud<pcl::Normal>::Ptr clusterNormals);

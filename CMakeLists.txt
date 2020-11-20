@@ -44,7 +44,8 @@ add_definitions(${OpenCV_DEFINITIONS})
 # Add executables
 add_executable(main src/main.cpp src/visualization.cpp src/features.cpp src/registration.cpp src/helper_functions.cpp)
 add_executable(generate_partial_views src/generate_partial_views.cpp src/visualization.cpp src/features.cpp src/registration.cpp src/helper_functions.cpp)
-add_executable(global_pipeline src/global_pipeline.cpp src/visualization.cpp src/features.cpp src/registration.cpp src/helper_functions.cpp)
+add_executable(train src/train.cpp src/visualization.cpp src/features.cpp src/registration.cpp src/helper_functions.cpp)
+add_executable(test_query src/test_query.cpp src/visualization.cpp src/features.cpp src/registration.cpp src/helper_functions.cpp)
 
 # Target include directories (https://stackoverflow.com/questions/4225005/how-to-generate-a-header-in-source-with-cmake)
 target_include_directories(main PUBLIC
@@ -53,6 +54,7 @@ target_include_directories(main PUBLIC
 # Target link libraries
 target_link_libraries(main ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} pthread)
 target_link_libraries(generate_partial_views ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} pthread)
-target_link_libraries(global_pipeline ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${MPI_LIBRARIES} mpi_cxx)
+target_link_libraries(train ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${MPI_LIBRARIES} mpi_cxx)
+target_link_libraries(test_query ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${MPI_LIBRARIES} mpi_cxx)
 
 
