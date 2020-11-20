@@ -18,6 +18,25 @@ using namespace std::chrono_literals;
 int
 main(int argc, char** argv)
 {
+
+
+
+    int resolution;
+    int tesselation_level;
+
+
+    if (argc < 3)
+        std::cerr << "Usage: " << argv[0] << " [FILE_NAME] [PASSTHROUGH_X_LOW] [PASSTHROUGH_X_HIGH] [PASSTHROUGH_Z_LOW] [PASSTHROUGH_Z_HIGH]" << std::endl;
+    else
+    {
+        resolution = std::atoi(argv[2]);
+        tesselation_level = std::atoi(argv[3]);
+        std::cout << "resolution: " << resolution << std::endl;
+        std::cout << "tesselation_level: " << tesselation_level << std::endl;
+    }
+
+
+
     // Load the PLY model from a file.
     vtkSmartPointer<vtkPLYReader> reader = vtkSmartPointer<vtkPLYReader>::New();
     reader->SetFileName(argv[1]);
@@ -31,8 +50,8 @@ main(int argc, char** argv)
     vtkSmartPointer<vtkPolyData> object = mapper->GetInput();
 
 
-    int resolution = 100; // 150
-    int tesselation_level = 1;
+    // int resolution = 100; // 150
+    // int tesselation_level = 1;
     int use_vertices = false;
     // Virtual scanner object.
     pcl::apps::RenderViewsTesselatedSphere render_views;

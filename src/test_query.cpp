@@ -113,6 +113,17 @@ int main(int argc, char* argv[])
         clust_tolerance = std::atof(argv[8]);
         PLANE_SEG = std::atoi(argv[9]);
         SOR = std::atoi(argv[10]);
+
+
+        std::cout << "x_low: " << x_low << std::endl;
+        std::cout << "x_high: " << x_high << std::endl;
+        std::cout << "z_low: " << z_low << std::endl;
+        std::cout << "z_high: " << z_high << std::endl;
+        std::cout << "min_clust_points: " << min_clust_points << std::endl;
+        std::cout << "max_clust_points: " << max_clust_points << std::endl;
+        std::cout << "clust_tolerance: " << clust_tolerance << std::endl;
+        std::cout << "PLANE_SEG: " << PLANE_SEG << std::endl;
+        std::cout << "SOR: " << SOR << std::endl;
     }
 
     // Paths
