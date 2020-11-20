@@ -57,7 +57,7 @@ void SORFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
 
 
 
-std::vector<pcl::PointIndices> clustering(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
+std::vector<pcl::PointIndices> clustering(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int min_clust_points, int max_clust_points, float clust_tolerance)
 {
     std::vector<pcl::PointIndices> cluster_indices;
     {
@@ -69,9 +69,9 @@ std::vector<pcl::PointIndices> clustering(pcl::PointCloud<pcl::PointXYZ>::Ptr cl
     tree->setInputCloud (cloud);
 
     pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-    ec.setClusterTolerance (0.02); // 2cm
-    ec.setMinClusterSize (100);
-    ec.setMaxClusterSize (25000);
+    ec.setClusterTolerance (clust_tolerance); // 0.02 -> 2cm
+    ec.setMinClusterSize (min_clust_points); // 100
+    ec.setMaxClusterSize (max_clust_points); // 25000
     ec.setSearchMethod (tree);
     ec.setInputCloud (cloud);
     ec.extract (cluster_indices);
@@ -187,3 +187,71 @@ std::vector<std::vector<float>> readCRH(std::string file_name)
 }
 
 
+
+double
+computeCloudResolution (const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &cloud)
+{
+  double res = 0.0;
+  int n_points = 0;
+  int nres;
+  std::vector<int> indices (2);
+  std::vector<float> sqr_distances (2);
+  pcl::search::KdTree<pcl::PointXYZ> tree;
+  tree.setInputCloud (cloud);
+
+  for (std::size_t i = 0; i < cloud->size (); ++i)
+  {
+    if (! std::isfinite ((*cloud)[i].x))
+    {
+      continue;
+    }
+    //Considering the second neighbor since the first is the point itself.
+    nres = tree.nearestKSearch (i, 2, indices, sqr_distances);
+    if (nres == 2)
+    {
+      res += sqrt (sqr_distances[1]);
+      ++n_points;
+    }
+  }
+  if (n_points != 0)
+  {
+    res /= n_points;
+  }
+
+  return res;
+}
+
+
+pcl::PointCloud<pcl::PointXYZ>::Ptr upsampleCloudMLS(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float radius)
+{
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_upsampled(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointNormal>::Ptr cloud_upsampled_w_normals(new pcl::PointCloud<pcl::PointNormal>);
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+    pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointNormal> mls;
+    // polynomial fitting could be disabled for speeding up smoothing.
+    // Please consult the code API (:pcl:`MovingLeastSquares <pcl::MovingLeastSquares>`)
+    // for default values and additional parameters to control the smoothing process.
+    mls.setPolynomialOrder (2);
+    mls.setInputCloud(cloud);
+    mls.setComputeNormals (false);
+    // Set parameters
+    mls.setSearchMethod (tree);
+    mls.setSearchRadius (radius); // original 0.03  // 0.003
+    // Reconstruct
+    mls.process (*cloud_upsampled_w_normals);
+    pcl::copyPointCloud(*cloud_upsampled_w_normals, *cloud_upsampled);
+
+    return cloud_upsampled;
+}
+
+pcl::PointCloud<pcl::PointXYZ>::Ptr downsampleCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float leaf_size)
+{
+    // Create the filtering object
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_downsampled(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::VoxelGrid<pcl::PointXYZ> sor;
+    sor.setInputCloud (cloud);
+    sor.setLeafSize (leaf_size, leaf_size, leaf_size); // 0.005f
+    sor.filter (*cloud_downsampled);
+
+    return cloud_downsampled;
+}

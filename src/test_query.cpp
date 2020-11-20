@@ -20,6 +20,7 @@
 #include <pcl/console/parse.h>
 
 
+
 using namespace std::chrono_literals;
 
 
@@ -45,8 +46,75 @@ void alignCloudAlongZ(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
 
 
 
+
+
+
+void viewCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string viewer_name)
+{
+    pcl::PointCloud<pcl::Normal>::Ptr normal_cloud(new pcl::PointCloud<pcl::Normal>);
+    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer (viewer_name));
+    viewer->setBackgroundColor(0, 0, 0);
+    int c1[3] = {255, 0, 255};
+    int c2[3] = {255, 0, 0};
+    int c3[3] = {255, 255, 0};
+    addCloudToVisualizer(viewer, cloud, normal_cloud, false, c1);
+    // addCloudToVisualizer(viewer, cloud_cluster, cluster_normals, false, c2);
+    // addCloudToVisualizer(viewer, aligned_cloud, cluster_normals, false, c3);
+    viewer->addCoordinateSystem (0.1, "global", 0);
+
+    while (!viewer->wasStopped())
+    {
+    // passthroughFilter(scene, "x", static_cast<double>(a) / 10.0, 0.15);
+    viewer->spinOnce(100);
+    std::this_thread::sleep_for(50ms);
+    cv::waitKey(1);
+    }
+}
+
+
 int main(int argc, char* argv[])
 {
+
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr scene(new pcl::PointCloud<pcl::PointXYZ>);
+    double x_low;
+    double x_high;
+    double z_low;
+    double z_high;
+    int min_clust_points;
+    int max_clust_points;
+    float clust_tolerance;
+    bool PLANE_SEG = 0;
+    bool SOR = 0;
+
+    if (argc < 11)
+        std::cerr << "Usage: " << argv[0] << " [FILE_NAME] [PASSTHROUGH_X_LOW] [PASSTHROUGH_X_HIGH] [PASSTHROUGH_Z_LOW] [PASSTHROUGH_Z_HIGH]" << std::endl;
+    else
+    {
+
+        // if (pcl::io::loadPLYFile("../data/scene_1_test.ply", *scene) == -1)
+        // if (pcl::io::loadPLYFile("../data/test_model.ply", *scene) == -1)
+        if (pcl::io::loadPLYFile(argv[1], *scene) == -1)
+        {
+            PCL_ERROR("Could not load scene file! \n");
+            return -1;
+        }
+
+
+        std::cout << "Resolution of Scene cloud is " << computeCloudResolution(scene) << std::endl;
+
+
+        x_low = std::atof(argv[2]);
+        x_high = std::atof(argv[3]);
+        z_low = std::atof(argv[4]);
+        z_high = std::atof(argv[5]);
+        min_clust_points = std::atof(argv[6]);
+        max_clust_points = std::atof(argv[7]);
+        clust_tolerance = std::atof(argv[8]);
+        PLANE_SEG = std::atoi(argv[9]);
+        SOR = std::atoi(argv[10]);
+    }
+
     // Paths
     std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
     std::string pcd_dir_name = base_dir + "/data/views_";
@@ -89,7 +157,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-        flann::Index<flann::L1<float> > index_loaded (data, flann::SavedIndexParams (kdtree_idx_file_name));
+        flann::Index<flann::ChiSquareDistance<float> > index_loaded (data, flann::SavedIndexParams (kdtree_idx_file_name));
         index_loaded.buildIndex ();
 
 
@@ -105,38 +173,46 @@ int main(int argc, char* argv[])
         // std::cout << "Scene contains " << scene->width * scene->height << " points" << std::endl;
 
 
-        // // Passthrough filter for scene
-        // passthroughFilter(scene, "x", -0.15, 0.15); // -0.075, 0.075   -0.3, 0.3 -0.15, 0.15
-        // passthroughFilter(scene, "z", -0.5, -0.1); // -0.7, 0.7        -0.4, 0.4 -0.5, -0.1
+        // Passthrough filter for scene
+        passthroughFilter(scene, "x", x_low, x_high); // -0.075, 0.075   -0.3, 0.3 -0.15, 0.15
+        passthroughFilter(scene, "z", z_low, z_high); // -0.7, 0.7        -0.4, 0.4 -0.5, -0.1
 
-        // // Plane segmentation and removal
-        // scene = segmentPlane(scene);
+        // Plane segmentation and removal
+        if (PLANE_SEG)
+            scene = segmentPlane(scene);
 
-        // // Statistical Outlier Removal filter
-        // SORFilter(scene);
+        // Statistical Outlier Removal filter
+        if (SOR)
+            SORFilter(scene);
+
+        viewCloud(scene, "plane segmentation and SOR");
+
+        // Upsample
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_upsampled(new pcl::PointCloud<pcl::PointXYZ>);
+        cloud_upsampled = upsampleCloudMLS(scene, 0.003);
+
+        std::cout << "Resolution of Upsampled Scene cloud is " << computeCloudResolution(cloud_upsampled) << std::endl;
+
+        viewCloud(cloud_upsampled, "Upsampled scene");
+
+        // Downsample
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_downsampled(new pcl::PointCloud<pcl::PointXYZ>);
+        cloud_downsampled = downsampleCloud(cloud_upsampled, 0.005);
+
+        // Filter scene from NaNs
+        std::vector<int> indices;
+        pcl::removeNaNFromPointCloud(*scene, *scene, indices);
+
+        std::cout << "Resolution of Downsampled Scene cloud is " << computeCloudResolution(cloud_downsampled) << std::endl;
+        viewCloud(cloud_downsampled, "Downsampled scene");
 
 
-        // // Clustering
-        // std::vector<pcl::PointIndices> cluster_indices = clustering(scene);
-
-        // std::cout << "cluster_indices size: " << cluster_indices.size() << std::endl;
 
 
-
-
-
-        pcl::PointCloud<pcl::PointXYZ>::Ptr scene(new pcl::PointCloud<pcl::PointXYZ>);
-        if (pcl::io::loadPLYFile("../data/scene_1_test.ply", *scene) == -1)
-        // if (pcl::io::loadPLYFile("../data/test_model.ply", *scene) == -1)
-        {
-            PCL_ERROR("Could not load scene file! \n");
-            return -1;
-        }
-
-        std::cout << "Scene contains " << scene->width * scene->height << " points" << std::endl;
+        std::cout << "Scene contains " << cloud_downsampled->width * cloud_downsampled->height << " points" << std::endl;
 
         // Clustering
-        std::vector<pcl::PointIndices> cluster_indices = clustering(scene);
+        std::vector<pcl::PointIndices> cluster_indices = clustering(cloud_downsampled, min_clust_points, max_clust_points, clust_tolerance);
 
         std::cout << "cluster_indices size: " << cluster_indices.size() << std::endl;
 
@@ -154,7 +230,7 @@ int main(int argc, char* argv[])
 
             {
             pcl::ExtractIndices<pcl::PointXYZ> extract(false);
-            extract.setInputCloud(scene);
+            extract.setInputCloud(cloud_downsampled);
             extract.setIndices(cluster_point_indices);
             extract.filter(*cloud_cluster);
             }
@@ -238,6 +314,7 @@ int main(int argc, char* argv[])
                   break;
 
 
+
                 // Convert from blob to PointCloud
                 // pcl::PointCloud<pcl::PointXYZ> cloud_xyz;
                 // pcl::fromPCLPointCloud2 (cloud, cloud_xyz);
@@ -263,6 +340,9 @@ int main(int argc, char* argv[])
                 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_xyz_ptr(new pcl::PointCloud<pcl::PointXYZ>);
                 if (pcl::io::loadPCDFile (pcd_dir_name + "/" + cloud_name + ".pcd", *cloud_xyz_ptr) == -1)
                   break;
+
+                std::cout << "Resolution of candidate cloud is " << computeCloudResolution(cloud_xyz_ptr) << std::endl;
+
                 pcl::PointCloud<pcl::Normal>::Ptr view_normals = computeNormals(cloud_xyz_ptr, false, 0.01);
                 // std::vector<float> angles = alignCRHAngles(cloud_xyz_ptr, cloud_cluster, view_normals, cluster_normals);
                 // float best_roll_angle = angles.at(0);
@@ -293,7 +373,7 @@ int main(int argc, char* argv[])
 
 
                 // Visualizer
-                pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer ("3D Viewer with custom color"));
+                pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer ("Aligned"));
                 viewer->setBackgroundColor(0, 0, 0);
                 int c1[3] = {255, 0, 255};
                 int c2[3] = {255, 0, 0};

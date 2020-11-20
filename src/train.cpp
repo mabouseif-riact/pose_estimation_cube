@@ -127,7 +127,7 @@ int main(int argc, char* argv[])
     flann::save_to_file (data, training_data_h5_file_name, "training_data");
     // Build the tree index and save it to disk
     pcl::console::print_error ("Building the kdtree index (%s) for %d elements...\n", kdtree_idx_file_name.c_str (), (int)data.rows);
-    flann::Index<flann::L1<float>> index (data, flann::LinearIndexParams());
+    flann::Index<flann::ChiSquareDistance<float>> index (data, flann::LinearIndexParams());
     //flann::Index<flann::ChiSquareDistance<float> > index (data, flann::KDTreeIndexParams (4));
     index.buildIndex();
     index.save(kdtree_idx_file_name);

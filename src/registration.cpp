@@ -44,7 +44,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr segmentPlane(pcl::PointCloud<pcl::PointXYZ>:
 void ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster)
 {
   // The Iterative Closest Point algorithm
-    int iterations = 30;
+    int iterations = 50;
     // time.tic ();
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
     // icp.setMaximumIterations (iterations);

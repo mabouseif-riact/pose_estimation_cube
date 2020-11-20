@@ -84,8 +84,19 @@ main(int argc, char** argv)
     for (size_t i = 0; i < views.size(); ++i)
     {
         std::cout << "View " << i + 1 << std::endl;
+        std::cout << "Resolution of view before scaling is " << computeCloudResolution(views.at(i)) << std::endl;
+
         // Scale view down
-        scaleCloud(views.at(i), -0.079); // 0.079
+        scaleCloud(views.at(i), -0.1); // 0.079
+
+        std::cout << "Resolution of view after scaling is " << computeCloudResolution(views.at(i)) << std::endl;
+
+        // Downsample
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_downsampled(new pcl::PointCloud<pcl::PointXYZ>);
+        views.at(i) = downsampleCloud(views.at(i), 0.005);
+
+        std::cout << "Resolution of view after downsampling is " << computeCloudResolution(views.at(i)) << std::endl;
+
 
         // Filter view from NaNs
         std::cout << "Points in cloud: " << views.at(i)->width * views.at(i)->height << std::endl;

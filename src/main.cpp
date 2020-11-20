@@ -128,7 +128,7 @@ int main(int argc, char* argv[])
     moveCloud(object, 'x', 1);
 
     // Clustering
-    std::vector<pcl::PointIndices> cluster_indices = clustering(scene);
+    std::vector<pcl::PointIndices> cluster_indices = clustering(scene, 100, 25000, 0.02);
 
     std::cout << "cluster_indices size: " << cluster_indices.size() << std::endl;
 

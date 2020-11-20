@@ -285,5 +285,6 @@ alignCRHTransforms(pcl::PointCloud<pcl::PointXYZ>::Ptr viewCloud,
         return transforms;
     }
 
+    std::cerr << "CRHAlignment failure. Exit.." << std::endl;
     exit(EXIT_FAILURE);
 }
