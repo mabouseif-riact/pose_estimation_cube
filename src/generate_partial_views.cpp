@@ -26,7 +26,10 @@ main(int argc, char** argv)
 
 
     if (argc < 3)
+    {
         std::cerr << "Usage: " << argv[0] << " [FILE_NAME] [PASSTHROUGH_X_LOW] [PASSTHROUGH_X_HIGH] [PASSTHROUGH_Z_LOW] [PASSTHROUGH_Z_HIGH]" << std::endl;
+        return -1;
+    }
     else
     {
         resolution = std::atoi(argv[2]);
@@ -91,8 +94,8 @@ main(int argc, char** argv)
 
     // std::cout << views.at(0)->width * views.at(0)->height << std::endl;
 
-    // std::string base_dir = "/home/mohamed/turtle_test_link/pose_estimation_cube";
-    std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
+    std::string base_dir = "/home/mohamed/turtle_test_link/pose_estimation_cube";
+    // std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
     std::string pcd_dir_name = base_dir + "/data/views_";
     std::string poses_dir_name = base_dir + "/data/poses";
     std::string CRH_dir_name = base_dir + "/data/CRH";
@@ -106,7 +109,7 @@ main(int argc, char** argv)
         std::cout << "Resolution of view before scaling is " << computeCloudResolution(views.at(i)) << std::endl;
 
         // Scale view down
-        scaleCloud(views.at(i), -0.1); // 0.079
+        scaleCloud(views.at(i), -0.09); // 0.079
 
         std::cout << "Resolution of view after scaling is " << computeCloudResolution(views.at(i)) << std::endl;
 

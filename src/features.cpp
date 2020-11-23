@@ -282,9 +282,20 @@ alignCRHTransforms(pcl::PointCloud<pcl::PointXYZ>::Ptr viewCloud,
     {
         std::cout << "Number of transforms where the histograms correlate: " << transforms.size() << std::endl;
 
-        return transforms;
     }
-
-    std::cerr << "CRHAlignment failure. Exit.." << std::endl;
-    exit(EXIT_FAILURE);
+    else
+    {
+        std::cout << std::endl;
+        std::cout << "***************************************************************************" << std::endl;
+        std::cout << "*                                                                         *" << std::endl;
+        std::cout << "*             CRHAlignment failure. Exit..                                *" << std::endl;
+        std::cout << "*                                                                         *" << std::endl;
+        std::cout << "***************************************************************************" << std::endl << std::endl;
+        
+        Eigen::Matrix4f identity_transform = Eigen::Matrix4f::Identity(4, 4);
+        transforms.push_back(identity_transform);
+        // exit(EXIT_FAILURE);
+    }
+    
+    return transforms;
 }

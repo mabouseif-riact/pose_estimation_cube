@@ -44,11 +44,11 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr segmentPlane(pcl::PointCloud<pcl::PointXYZ>:
 void ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster)
 {
   // The Iterative Closest Point algorithm
-    int iterations = 50;
+    int iterations = 100;
     // time.tic ();
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
     // icp.setMaximumIterations (iterations);
-    icp.setEuclideanFitnessEpsilon(0.1);
+    icp.setEuclideanFitnessEpsilon(0.0005);
     std::cout << "ICP using setEuclideanFitnessEpsilon for termination" << std::endl;
     icp.setInputSource (cloud_cluster);
     icp.setInputTarget (object_aligned);

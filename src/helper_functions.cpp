@@ -255,3 +255,65 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr downsampleCloud(pcl::PointCloud<pcl::PointXY
 
     return cloud_downsampled;
 }
+
+
+
+
+void alignCloudAlongZ(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
+{
+    Eigen::Vector4f cloudCentroidVector;
+    pcl::compute3DCentroid(*cloud, cloudCentroidVector);
+    Eigen::Vector3f vec1 = cloudCentroidVector.head<3>();
+    cloudCentroidVector.normalize();
+    Eigen::Vector3f viewPointUnitVector;
+    viewPointUnitVector << 0.0, 0.0, -1.0;
+    std::cout << "Cloud centeroid: " << cloudCentroidVector << std::endl;
+    // float angle = std::acos(cloudCentroidVector.dot(viewPointUnitVector));
+    // Eigen::Vector3f cross_vec = vec1.cross(viewPointUnitVector); // or switch vectors
+    Eigen::Quaternionf q = Eigen::Quaternionf::FromTwoVectors(vec1, viewPointUnitVector);
+    Eigen::Vector3f offset_vec;
+    offset_vec << 0, 0, 0;
+    pcl::transformPointCloud(*cloud, *cloud, offset_vec, q);
+
+}
+
+
+
+int countInliers(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr view)
+{
+    pcl::ScopeTime("Count Inliers");
+    // Creating the KdTree object for the search method of the extraction
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+    tree->setInputCloud (cloud);
+
+    std::vector<float> distances(1);
+    std::vector<int> indices (1);
+    int k = 1;
+    int k_neighbours_found;
+    // double eps = 0.00000000001;
+    // tree->setEpsilon(eps);
+    double thresh = 0.00001;
+    
+    
+
+    float total_dist = 0;
+    int inliers = 0;
+
+
+    for (size_t i = 0; i < view->size(); ++i)
+    {
+        k_neighbours_found = tree->nearestKSearch(view->points[i], k, indices, distances);
+        if (k_neighbours_found > 0)
+        {
+            if (distances.at(0) < thresh)
+            {
+                total_dist += distances.at(0);
+                inliers += 1;      
+            }
+            
+        }
+    }
+    std::cout << "Total distance error: " << total_dist << std::endl;
+
+    return inliers;
+}

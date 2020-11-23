@@ -1,6 +1,7 @@
 
 #include "visualization.h"
 
+using namespace std::chrono_literals;
 
 
 pcl::visualization::PCLVisualizer::Ptr  simpleVis(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud)
@@ -61,4 +62,28 @@ void addCloudToVisualizer(pcl::visualization::PCLVisualizer::Ptr viewer,
         viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal> (cloud, normals, 10, 0.005, "normals " + count);
 
     ++count;
+}
+
+
+
+void viewCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string viewer_name)
+{
+    pcl::PointCloud<pcl::Normal>::Ptr normal_cloud(new pcl::PointCloud<pcl::Normal>);
+    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer (viewer_name));
+    viewer->setBackgroundColor(0, 0, 0);
+    int c1[3] = {255, 0, 255};
+    int c2[3] = {255, 0, 0};
+    int c3[3] = {255, 255, 0};
+    addCloudToVisualizer(viewer, cloud, normal_cloud, false, c1);
+    // addCloudToVisualizer(viewer, cloud_cluster, cluster_normals, false, c2);
+    // addCloudToVisualizer(viewer, aligned_cloud, cluster_normals, false, c3);
+    viewer->addCoordinateSystem (0.1, "global", 0);
+
+    while (!viewer->wasStopped())
+    {
+    // passthroughFilter(scene, "x", static_cast<double>(a) / 10.0, 0.15);
+    viewer->spinOnce(100);
+    std::this_thread::sleep_for(50ms);
+    cv::waitKey(1);
+    }
 }
