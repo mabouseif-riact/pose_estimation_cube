@@ -94,14 +94,16 @@ main(int argc, char** argv)
 
     // std::cout << views.at(0)->width * views.at(0)->height << std::endl;
 
-    std::string base_dir = "/home/mohamed/turtle_test_link/pose_estimation_cube";
-    // std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
+    // std::string base_dir = "/home/mohamed/turtle_test_link/pose_estimation_cube";
+    std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
     std::string pcd_dir_name = base_dir + "/data/views_";
     std::string poses_dir_name = base_dir + "/data/poses";
     std::string CRH_dir_name = base_dir + "/data/CRH";
     std::ofstream poses_file (poses_dir_name + "/poses.txt");
     std::ofstream CRH_file (CRH_dir_name + "/CRH.txt");
 
+
+    deleteDirectoryContents(pcd_dir_name);
 
     for (size_t i = 0; i < views.size(); ++i)
     {
@@ -146,7 +148,11 @@ main(int argc, char** argv)
         std::cout << "Points in cloud after Normal NaN removal: " << views.at(i)->width * views.at(i)->height << std::endl;
 
         // Save view to PCD file
-        pcl::io::savePCDFileBinary(pcd_dir_name + "/" + std::to_string(i+1) + ".pcd", *views.at(i));
+        std::string view_path = pcd_dir_name + "/" + std::to_string(i+1) + ".pcd";
+        // Check for existence
+        if (std::experimental::filesystem::exists(view_path))
+            std::remove(view_path.c_str());
+        pcl::io::savePCDFileBinary(view_path, *views.at(i));
 
         // Write poses to file
         std::cout << "Writing poses.." << std::endl;

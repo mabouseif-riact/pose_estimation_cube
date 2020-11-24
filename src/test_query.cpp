@@ -27,6 +27,7 @@ using namespace std::chrono_literals;
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr scene(new pcl::PointCloud<pcl::PointXYZ>);
 std::string scene_file;
+std::string descriptor_name("");
 double x_low = -DBL_MAX;
 double x_high = DBL_MAX;
 double z_low = -DBL_MAX;
@@ -51,7 +52,7 @@ showHelp (char *filename)
   std::cout << "*                        Usage Guide                                      *" << std::endl;
   std::cout << "*                                                                         *" << std::endl;
   std::cout << "***************************************************************************" << std::endl << std::endl;
-  std::cout << "Usage: " << filename << " model_filename.ply [Options]" << std::endl << std::endl;
+  std::cout << "Usage: " << filename << " [File_name] [Descriptor] [Options]" << std::endl << std::endl;
   std::cout << "Options:" << std::endl;
   std::cout << "     -h:                     Show help" << std::endl;
   std::cout << "     --x_low:                Passthrough X low" << std::endl;
@@ -104,24 +105,26 @@ void parseCommandLine(int argc, char *argv[])
 
     //Program behavior
     if (pcl::console::find_switch (argc, argv, "--upsample"))
-    {
         upsample = true;
-    }
     if (pcl::console::find_switch (argc, argv, "--downsample"))
-    {
         downsample = true;
-    }
     if (pcl::console::find_switch (argc, argv, "--plane_seg"))
-    {
         plane_seg = true;
-    }
     if (pcl::console::find_switch (argc, argv, "--sor"))
-    {
         sor = true;
-    }
     if (pcl::console::find_switch (argc, argv, "--icp"))
-    {
         icp = true;
+    if (pcl::console::find_switch (argc, argv, "--vfh"))
+        descriptor_name = "VFH";
+    if (pcl::console::find_switch (argc, argv, "--cvfh"))
+        descriptor_name = "CVFH";
+    if (pcl::console::find_switch (argc, argv, "--ourcvfh"))
+        descriptor_name = "OURCVFH";
+
+    if (descriptor_name == "")
+    {
+        std::cerr << "No descriptor chosen!" << std::endl;
+        exit(-1);
     }
 
 
@@ -137,7 +140,7 @@ void parseCommandLine(int argc, char *argv[])
     std::cout << "plane_seg: " << plane_seg << std::endl;
     std::cout << "sor: " << sor << std::endl;
     std::cout << "icp: " << icp << std::endl;
-    
+
 }
 
 
@@ -161,11 +164,12 @@ int main(int argc, char* argv[])
 
 
     // Paths
-    std::string base_dir = "/home/mohamed/turtle_test_link/pose_estimation_cube";
-    // std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
+    // std::string base_dir = "/home/mohamed/turtle_test_link/pose_estimation_cube";
+    std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
     std::string pcd_dir_name = base_dir + "/data/views_";
     std::string poses_dir_name = base_dir + "/data/poses";
     std::string CRH_dir_name = base_dir + "/data/CRH";
+    std::string view_names_vec_file= base_dir + "/data/view_names.vec";
     std::string training_data_h5_file_name = base_dir + "/data/training_data.h5";
     std::string kdtree_idx_file_name = base_dir + "/data/kdtree.idx";
     std::string training_data_list_file_name = "training_data.list";
@@ -173,8 +177,9 @@ int main(int argc, char* argv[])
 
     std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> poses_new = openData(poses_dir_name + "/poses.txt");
     std::vector<std::vector<float>> crh_vecs = readCRH(CRH_dir_name + "/CRH.txt");
+    std::vector<int> clustered_view_files_vec = readVectorFromFile(view_names_vec_file);
     int descriptor_size = 308; // VFH
-    size_t n_train = poses_new.size();
+    size_t n_train = clustered_view_files_vec.size();
     flann::Matrix<float> data (new float[n_train * descriptor_size], n_train, descriptor_size);
     std::cout << "data rows: " << data.rows << std::endl;
     std::cout << "data cols: " << data.cols << std::endl;
@@ -283,18 +288,32 @@ int main(int argc, char* argv[])
             // Normals computation
             pcl::PointCloud<pcl::Normal>::Ptr cluster_normals = computeNormals(cloud_cluster, false, 0.01);
             std::cout << "Cluster normals computed" << std::endl;
+
             // Descriptor computation
-            pcl::PointCloud<pcl::VFHSignature308>::Ptr vfhs_cluster = computeVFH(cloud_cluster, cluster_normals);
-            std::cout << "Cluster VFH signature computed" << std::endl;
+            pcl::PointCloud<pcl::VFHSignature308>::Ptr descriptor_cluster(new pcl::PointCloud<pcl::VFHSignature308>);
+            if (descriptor_name == "VFH")
+                descriptor_cluster = computeVFH(cloud_cluster, object_normals);
+            if (descriptor_name == "CVFH")
+                descriptor_cluster = computeCVFH(cloud_cluster, object_normals);
+            if (descriptor_name == "OURVFH")
+                descriptor_cluster = computeOURCVFH(cloud_cluster, object_normals);
+
+            std::cout << "Cluster " << descriptor_name << " signature computed" << std::endl;
+
             // CRH computation
-            pcl::PointCloud<CRH90>::Ptr cluster_CRH = computeCRH(cloud_cluster, cluster_normals);
-            std::cout << "Cluster CRH signature computed" << std::endl;
+            if (descriptor_name == "VFH" || descriptor_name == "CVFH")
+            {
+                pcl::PointCloud<CRH90>::Ptr cluster_CRH = computeCRH(cloud_cluster, cluster_normals);
+                std::cout << "Cluster CRH signature computed" << std::endl;
+            }
+
+            int sub_cluster_size = descriptor_cluster->width * descriptor_cluster->height;
 
             // Query point
             // float test_model_histogram[308] = cloud_cluster_features->points[0].histogram; //  = vfhs_object->points[0].histogram
             int histogram_size = 308;
             flann::Matrix<float> p = flann::Matrix<float>(new float[descriptor_size], 1, descriptor_size);
-            memcpy (&p.ptr ()[0], &vfhs_cluster->points[0].histogram[0], p.cols * p.rows * sizeof (float));
+            memcpy (&p.ptr ()[0], &descriptor_cluster->points[0].histogram[0], p.cols * p.rows * sizeof (float));
             // for (int i = 0; i < histogram_size; ++i)
             //     p[0][i] = vfhs_cluster->points[0].histogram[i];
 
@@ -479,7 +498,7 @@ int main(int argc, char* argv[])
                 // // Add the cluster name
                 // v.addText (cloud_name, 20, 10, cloud_name, viewport);
             }
-            
+
             std::cout << "Done showing all neighbours" << std::endl;
 
             // Add coordianate systems to all viewports

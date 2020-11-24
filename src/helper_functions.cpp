@@ -1,4 +1,4 @@
-#include "helper_functions.h"
+    #include "helper_functions.h"
 
 
 
@@ -89,13 +89,12 @@ int PCDIndex(std::string path)
     // std::string path = entry.path().string();
     std::string delimiter = ".";
     std::string token = path.substr(0, path.find(delimiter));
-    std::string num_str = "";
-    for (std::string::reverse_iterator rev_it = token.rbegin(); rev_it != token.rbegin() + 2; ++rev_it)
-    {
-        if ((int)*rev_it >= 48 && (int)*rev_it <= 57)
-            num_str += *rev_it;
-    }
+    std::reverse(token.begin(), token.end());
+    delimiter = '/';
+    std::string num_str = token.substr(0, token.find(delimiter));
     std::reverse(num_str.begin(), num_str.end());
+
+    std::cout << "Filename from PCDIndex: " << num_str << std::endl;
 
     return std::stoi(num_str);
 }
@@ -293,8 +292,8 @@ int countInliers(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl:
     // double eps = 0.00000000001;
     // tree->setEpsilon(eps);
     double thresh = 0.00001;
-    
-    
+
+
 
     float total_dist = 0;
     int inliers = 0;
@@ -308,12 +307,37 @@ int countInliers(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl:
             if (distances.at(0) < thresh)
             {
                 total_dist += distances.at(0);
-                inliers += 1;      
+                inliers += 1;
             }
-            
+
         }
     }
     std::cout << "Total distance error: " << total_dist << std::endl;
 
     return inliers;
+}
+
+
+void deleteDirectoryContents(const std::string& dir_path)
+{
+    for (const auto& entry : std::experimental::filesystem::directory_iterator(dir_path))
+        std::experimental::filesystem::remove_all(entry.path());
+}
+
+
+void writeVectorToFile(std::string filename, const std::vector<int>& myVector)
+{
+    std::ofstream ofs(filename, std::ios::out | std::ofstream::binary);
+    std::ostream_iterator<double> osi{ofs," "};
+    std::copy(myVector.begin(), myVector.end(), osi);
+}
+
+std::vector<int> readVectorFromFile(std::string filename)
+{
+    std::vector<int> newVector{};
+    std::ifstream ifs(filename, std::ios::in | std::ifstream::binary);
+    std::istream_iterator<int> iter{ifs};
+    std::istream_iterator<int> end{};
+    std::copy(iter, end, std::back_inserter(newVector));
+    return newVector;
 }

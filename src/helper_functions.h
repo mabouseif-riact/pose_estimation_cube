@@ -10,6 +10,8 @@
 #include <fstream>      // std::ofstream
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/surface/mls.h>
+#include <string.h>
+#include <algorithm>
 
 
 void passthroughFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, char* field, double min_val, double max_val);
@@ -37,3 +39,9 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr upsampleCloudMLS(pcl::PointCloud<pcl::PointX
 void alignCloudAlongZ(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 
 int countInliers(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr view);
+
+void deleteDirectoryContents(const std::string& dir_path);
+
+std::vector<int> readVectorFromFile(std::string filename);
+
+void writeVectorToFile(std::string filename, const std::vector<int>& myVector);
