@@ -121,6 +121,9 @@ pcl::PointCloud<pcl::VFHSignature308>::Ptr computeCVFH(pcl::PointCloud<pcl::Poin
 pcl::PointCloud<pcl::VFHSignature308>::Ptr computeOURCVFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
                                                           pcl::PointCloud<pcl::Normal>::ConstPtr normals)
 {
+
+    // https://github.com/PointCloudLibrary/pcl/blob/master/apps/3d_rec_framework/include/pcl/apps/3d_rec_framework/feature_wrapper/global/ourcvfh_estimator.h
+    //
     // You can use the "getTransforms()" function to get the transformations aligning the cloud to the corresponding SGURF.
 
     pcl::PointCloud<pcl::VFHSignature308>::Ptr ourcvfhs (new pcl::PointCloud<pcl::VFHSignature308> ());
@@ -138,8 +141,51 @@ pcl::PointCloud<pcl::VFHSignature308>::Ptr computeOURCVFH(pcl::PointCloud<pcl::P
     // Set the minimum axis ratio between the SGURF axes. At the disambiguation phase,
     // this will decide if additional Reference Frames need to be created, if ambiguous.
     ourcvfh.setAxisRatio(0.8);
+    // ourcvfh.setRefineClusters(0.8);
 
     ourcvfh.compute(*ourcvfhs);
+
+
+    return ourcvfhs;
+}
+
+
+
+pcl::PointCloud<pcl::VFHSignature308>::Ptr computeOURCVFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
+                                                          pcl::PointCloud<pcl::Normal>::ConstPtr normals,
+                                                          std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>& transforms,
+                                                          std::vector<bool>& valid_roll_transforms,
+                                                          std::vector<pcl::PointIndices>& cluster_indices,
+                                                          std::vector<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f>>& centroids)
+{
+
+    // https://github.com/PointCloudLibrary/pcl/blob/master/apps/3d_rec_framework/include/pcl/apps/3d_rec_framework/feature_wrapper/global/ourcvfh_estimator.h
+    //
+    // You can use the "getTransforms()" function to get the transformations aligning the cloud to the corresponding SGURF.
+
+    pcl::PointCloud<pcl::VFHSignature308>::Ptr ourcvfhs (new pcl::PointCloud<pcl::VFHSignature308> ());
+
+    // OUR-CVFH estimation object.
+    pcl::OURCVFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::VFHSignature308> ourcvfh;
+    ourcvfh.setInputCloud(cloud);
+    ourcvfh.setInputNormals(normals);
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
+    ourcvfh.setSearchMethod(tree);
+    // ourcvfh.setClusterTolerance (0.015f); //1.5cm, three times the leaf size
+    ourcvfh.setEPSAngleThreshold(5.0 / 180.0 * M_PI); // 5 degrees. // or 0.13f
+    ourcvfh.setCurvatureThreshold(0.025); // 0.025f // 1.0f
+    ourcvfh.setNormalizeBins(false);
+    // Set the minimum axis ratio between the SGURF axes. At the disambiguation phase,
+    // this will decide if additional Reference Frames need to be created, if ambiguous.
+    ourcvfh.setAxisRatio(0.8);
+    // ourcvfh.setRefineClusters(0.8);
+
+    ourcvfh.compute(*ourcvfhs);
+
+    ourcvfh.getCentroidClusters(centroids);
+    ourcvfh.getTransforms(transforms);
+    ourcvfh.getValidTransformsVec(valid_roll_transforms);
+    ourcvfh.getClusterIndices(cluster_indices);
 
     return ourcvfhs;
 }
@@ -291,11 +337,11 @@ alignCRHTransforms(pcl::PointCloud<pcl::PointXYZ>::Ptr viewCloud,
         std::cout << "*             CRHAlignment failure. Exit..                                *" << std::endl;
         std::cout << "*                                                                         *" << std::endl;
         std::cout << "***************************************************************************" << std::endl << std::endl;
-        
+
         Eigen::Matrix4f identity_transform = Eigen::Matrix4f::Identity(4, 4);
         transforms.push_back(identity_transform);
         // exit(EXIT_FAILURE);
     }
-    
+
     return transforms;
 }

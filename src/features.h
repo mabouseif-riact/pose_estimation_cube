@@ -27,7 +27,14 @@ pcl::PointCloud<pcl::VFHSignature308>::Ptr computeCVFH(pcl::PointCloud<pcl::Poin
                                                        pcl::PointCloud<pcl::Normal>::ConstPtr normals);
 
 pcl::PointCloud<pcl::VFHSignature308>::Ptr computeOURCVFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
-                                                       pcl::PointCloud<pcl::Normal>::ConstPtr normals);
+                                                          pcl::PointCloud<pcl::Normal>::ConstPtr normals);
+
+pcl::PointCloud<pcl::VFHSignature308>::Ptr computeOURCVFH(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
+                                                          pcl::PointCloud<pcl::Normal>::ConstPtr normals,
+                                                          std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>& transforms,
+                                                          std::vector<bool>& valid_roll_transforms,
+                                                          std::vector<pcl::PointIndices>& cluster_indices,
+                                                          std::vector<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f>>& centroids);
 
 pcl::PointCloud<CRH90>::Ptr computeCRH(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
                 					   const pcl::PointCloud<pcl::Normal>::ConstPtr normals);
