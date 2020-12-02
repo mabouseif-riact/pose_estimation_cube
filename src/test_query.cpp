@@ -43,6 +43,31 @@ bool icp = false;
 
 
 
+struct candidateDictionary
+{
+    std::string cloud_name;
+    Eigen::Matrix4f transform;
+    Eigen::Matrix4f view_frame_transform;
+};
+
+
+
+Eigen::Matrix4f getCloudTransform(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
+{
+    Eigen::Matrix4f transform;
+    Eigen::Matrix3f sensor_rotation( cloud->sensor_orientation_);
+    Eigen::Vector4f sensor_translation;
+    sensor_translation = cloud->sensor_origin_;
+    //Transformation from local object reference frame to kinect frame (as it was during database acquisition)
+    transform << sensor_rotation(0,0), sensor_rotation(0,1), sensor_rotation(0,2), sensor_translation(0),
+    sensor_rotation(1,0), sensor_rotation(1,1), sensor_rotation(1,2), sensor_translation(1),
+    sensor_rotation(2,0), sensor_rotation(2,1), sensor_rotation(2,2), sensor_translation(2),
+    0,                    0,                    0,                    1;
+
+    return transform;
+}
+
+
 void
 showHelp (char *filename)
 {
@@ -255,9 +280,21 @@ int main(int argc, char* argv[])
             viewCloud(scene, "Downsampled scene");
         }
 
+        if (!upsample && !downsample)
+        {
+            // Filter scene from NaNs
+            std::vector<int> valid_indices;
+            pcl::removeNaNFromPointCloud(*scene, *scene, valid_indices);
+        }
+
+
 
         std::cout << "Scene contains " << scene->width * scene->height << " points" << std::endl;
-
+        scene->is_dense = false;
+        // Filter scene from NaNs
+        std::vector<int> valid_indices;
+        pcl::removeNaNFromPointCloud(*scene, *scene, valid_indices);
+        std::cout << "Scene contains " << scene->width * scene->height << " points" << std::endl;
 
         // Clustering
         std::vector<pcl::PointIndices> cluster_indices = clustering(scene, min_clust_points, max_clust_points, clust_tolerance);
@@ -265,7 +302,11 @@ int main(int argc, char* argv[])
         std::cout << "cluster_indices size: " << cluster_indices.size() << std::endl;
 
 
+        std::map<float, std::string> top_candidates_map;
+        std::pair<float, std::string> top_pair;
+        std::map<float, candidateDictionary> transform_lookup;
         pcl::PointCloud<pcl::VFHSignature308>::Ptr cloud_cluster_features (new pcl::PointCloud<pcl::VFHSignature308>);
+
         for (pcl::PointIndices indices: cluster_indices)
         {
 
@@ -281,10 +322,11 @@ int main(int argc, char* argv[])
             extract.filter(*cloud_cluster);
             }
 
-            alignCloudAlongZ(cloud_cluster);
-            // exit(-1);
+            // Compensation of rotation about Y axis (along Z) to match how original generated views
+            Eigen::Matrix4f align_transform = alignCloudAlongZ(cloud_cluster);
+            pcl::transformPointCloud(*cloud_cluster, *cloud_cluster, align_transform);
 
-            // Normals computation
+            // Cluster normals computation
             pcl::PointCloud<pcl::Normal>::Ptr cluster_normals = computeNormals(cloud_cluster, false, 0.01);
             std::cout << "Cluster normals computed" << std::endl;
 
@@ -422,6 +464,7 @@ int main(int argc, char* argv[])
                     //                   0,        0,         0, 1;
 
                     Eigen::Matrix4f final_transform;
+                    candidateDictionary temp_dict;
 
                     if (descriptor_name == "OURCVFH")
                     {
@@ -454,6 +497,8 @@ int main(int argc, char* argv[])
 
                         final_transform = T_cen*T_kli;; // ourcvfh_transforms.at(j).inverse();
 
+                        temp_dict.view_frame_transform = final_transform;
+
 
                     }
 
@@ -462,54 +507,113 @@ int main(int argc, char* argv[])
                         std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> transforms = alignCRHTransforms(cloud_xyz_ptr, cloud_cluster, view_normals, cluster_normals);
                         matching_pose = transforms.at(0);
                         final_transform = matching_pose;
+
+                        temp_dict.view_frame_transform = getCloudTransform(cloud_xyz_ptr);
                     }
 
                     pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
                     pcl::transformPointCloud(*cloud_xyz_ptr, *aligned_cloud, final_transform);
 
+                    Eigen::Matrix4f icp_transform;
+
                     if (icp)
                     {
                         pcl::ScopeTime("ICP");
-                        ICP(cloud_cluster, aligned_cloud);
+                        icp_transform = ICP(cloud_cluster, aligned_cloud);
                     }
+                    else
+                    {
+                        icp_transform = Eigen::Matrix4f::Identity();
+                    }
+
+                    // Eigen::Matrix4f icp_transform(getCloudTransform(aligned_cloud));
 
 
                     int view_size = cloud_xyz_ptr->width * cloud_xyz_ptr->height;
                     int inliers =  countInliers(cloud_cluster, aligned_cloud);
                     double inliers_percentage = static_cast<double>(inliers) / static_cast<double>(view_size);
-                    std::cout << "View points count: " << inliers << std::endl;
+                    std::cout << "View points count: " << view_size << std::endl;
                     std::cout << "Inlier points count: " << inliers << std::endl;
                     std::cout << "Percentage of inliers: " << inliers_percentage << std::endl;
 
-                    // top_pair.second = cloud_name;
-                    // top_pair.first = inliers_percentage;
-                    // top_candidates_map.insert(top_pair);
+
+                    temp_dict.transform = align_transform.inverse() * icp_transform * final_transform;
+                    temp_dict.view_frame_transform = temp_dict.transform * temp_dict.view_frame_transform.inverse();
+                    temp_dict.cloud_name = cloud_name;
+
+                    transform_lookup.insert(std::pair<float, candidateDictionary>(inliers_percentage, temp_dict));
 
 
-                    // Visualizer
-                    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer ("Aligned"));
-                    viewer->setBackgroundColor(0, 0, 0);
-                    int c1[3] = {255, 0, 255};
-                    int c2[3] = {255, 0, 0};
-                    int c3[3] = {255, 255, 0};
-                    addCloudToVisualizer(viewer, cloud_xyz_ptr, view_normals, false, c1);
-                    addCloudToVisualizer(viewer, cloud_cluster, cluster_normals, false, c2);
-                    addCloudToVisualizer(viewer, aligned_cloud, cluster_normals, false, c3);
-                    viewer->addCoordinateSystem (0.1, "global", 0);
+                    // // Visualizer
+                    // pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer ("Aligned"));
+                    // viewer->setBackgroundColor(0, 0, 0);
+                    // int c1[3] = {255, 0, 255};
+                    // int c2[3] = {255, 0, 0};
+                    // int c3[3] = {255, 255, 0};
+                    // addCloudWithNormalsToVisualizer(viewer, cloud_xyz_ptr, view_normals, false, c1);
+                    // addCloudWithNormalsToVisualizer(viewer, cloud_cluster, cluster_normals, false, c2);
+                    // addCloudWithNormalsToVisualizer(viewer, aligned_cloud, cluster_normals, false, c3);
+                    // viewer->addCoordinateSystem (0.1, "global", 0);
 
-                    while (!viewer->wasStopped())
-                    {
-                    // passthroughFilter(scene, "x", static_cast<double>(a) / 10.0, 0.15);
-                    viewer->spinOnce(100);
-                    std::this_thread::sleep_for(50ms);
-                    cv::waitKey(1);
-                    }
+                    // while (!viewer->wasStopped())
+                    // {
+                    // // passthroughFilter(scene, "x", static_cast<double>(a) / 10.0, 0.15);
+                    // viewer->spinOnce(100);
+                    // std::this_thread::sleep_for(50ms);
+                    // cv::waitKey(1);
+                    // }
 
                 }
                 std::cout << "Done showing all neighbours" << std::endl;
             }
 
         }
+
+        std::cout << "Transform lookup size: " << transform_lookup.size() << std::endl;
+        std::cout << "cloud name at index 0: " << std::prev(transform_lookup.end())->second.cloud_name << std::endl;
+        for (auto item: transform_lookup)
+            std::cout << item.first << std::endl;
+        for (auto item: transform_lookup)
+            std::cout << (item.second).cloud_name << std::endl;
+
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_xyz_ptr(new pcl::PointCloud<pcl::PointXYZ>);
+        if (pcl::io::loadPCDFile (pcd_dir_name + "/" + std::prev(transform_lookup.end())->second.cloud_name + ".pcd", *cloud_xyz_ptr) == -1)
+        {
+            std::cout << "Could not read top candidate. Exit.." << std::endl;
+            exit(-1);
+        }
+
+        pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::transformPointCloud(*cloud_xyz_ptr, *aligned_cloud, std::prev(transform_lookup.end())->second.transform);
+
+        // if (icp)
+        // {
+        //     pcl::ScopeTime("ICP final");
+        //     ICP(scene, aligned_cloud);
+        // }
+
+        // Visualizer
+        pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer ("Aligned"));
+        viewer->setBackgroundColor(0, 0, 0);
+        int c1[3] = {255, 0, 255};
+        int c2[3] = {255, 0, 0};
+        int c3[3] = {255, 255, 0};
+        addCloudToVisualizer(viewer, scene, c1, "Scene");
+        addCloudToVisualizer(viewer, aligned_cloud, c3, "Aligned");
+        viewer->addCoordinateSystem (0.1, "global", 0);
+        viewer->addCoordinateSystem (0.1, std::prev(transform_lookup.end())->second.view_frame_transform(0, 3),
+                                          std::prev(transform_lookup.end())->second.view_frame_transform(1, 3),
+                                          std::prev(transform_lookup.end())->second.view_frame_transform(2, 3));
+
+        while (!viewer->wasStopped())
+        {
+        // passthroughFilter(scene, "x", static_cast<double>(a) / 10.0, 0.15);
+        viewer->spinOnce(100);
+        std::this_thread::sleep_for(50ms);
+        cv::waitKey(1);
+        }
+
+
 
     }
 

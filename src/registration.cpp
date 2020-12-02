@@ -41,14 +41,15 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr segmentPlane(pcl::PointCloud<pcl::PointXYZ>:
 
 
 
-void ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster)
+Eigen::Matrix4f ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster)
 {
   // The Iterative Closest Point algorithm
     int iterations = 100;
     // time.tic ();
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-    // icp.setMaximumIterations (iterations);
+    icp.setMaximumIterations (iterations);
     icp.setEuclideanFitnessEpsilon(0.0005);
+    icp.setMaxCorrespondenceDistance(0.01);
     std::cout << "ICP using setEuclideanFitnessEpsilon for termination" << std::endl;
     icp.setInputSource (cloud_cluster);
     icp.setInputTarget (object_aligned);
@@ -57,9 +58,6 @@ void ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned, pcl::PointClou
         icp.align (*cloud_cluster);
     }
 
-    icp.setMaximumIterations (1);  // We set this variable to 1 for the next time we will call .align () function
-    // std::cout << "Applied " << iterations << " ICP iteration(s) in " << time.toc () << " ms" << std::endl;
-
     if (icp.hasConverged ())
     {
         std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
@@ -67,11 +65,12 @@ void ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned, pcl::PointClou
         auto transformation_matrix = icp.getFinalTransformation (); // .cast<double>();
         // pcl::transformPointCloud(*object_aligned, *object_aligned, transformation_matrix);
         // print4x4Matrix (transformation_matrix);
+        return transformation_matrix;
     }
     else
     {
         PCL_ERROR ("\nICP has not converged.\n");
-        // return (-1);
+        return Eigen::Matrix4f::Identity();
     }
 
 }

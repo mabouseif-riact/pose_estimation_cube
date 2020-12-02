@@ -258,7 +258,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr downsampleCloud(pcl::PointCloud<pcl::PointXY
 
 
 
-void alignCloudAlongZ(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
+Eigen::Matrix4f alignCloudAlongZ(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
 {
     Eigen::Vector4f cloudCentroidVector;
     pcl::compute3DCentroid(*cloud, cloudCentroidVector);
@@ -272,7 +272,14 @@ void alignCloudAlongZ(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
     Eigen::Quaternionf q = Eigen::Quaternionf::FromTwoVectors(vec1, viewPointUnitVector);
     Eigen::Vector3f offset_vec;
     offset_vec << 0, 0, 0;
-    pcl::transformPointCloud(*cloud, *cloud, offset_vec, q);
+    // pcl::transformPointCloud(*cloud, *cloud, offset_vec, q);
+
+    Eigen::Matrix3f rot = q.toRotationMatrix();
+    Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+    transform.block(0, 0, 3, 3) = rot;
+    transform.block(0, 3, 3, 1) = offset_vec;
+
+    return transform;
 
 }
 

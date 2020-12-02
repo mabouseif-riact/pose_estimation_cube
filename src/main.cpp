@@ -262,9 +262,9 @@ int main(int argc, char* argv[])
 
         int c1[3] = {255, 255, 0};
         int c2[3] = {255, 0, 255};
-        addCloudToVisualizer(viewer, cloud_cluster, object_normals, false, c1);
-        addCloudToVisualizer(viewer, object, object_normals, false, c2);
-        addCloudToVisualizer(viewer, object_aligned, object_normals, false, c2);
+        addCloudWithNormalsToVisualizer(viewer, cloud_cluster, object_normals, false, c1);
+        addCloudWithNormalsToVisualizer(viewer, object, object_normals, false, c2);
+        addCloudWithNormalsToVisualizer(viewer, object_aligned, object_normals, false, c2);
 
         viewer->addCorrespondences<pcl::PointXYZ> (scene, object, corr, "Correspondences");
 

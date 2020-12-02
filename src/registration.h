@@ -12,7 +12,7 @@
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
 
 
-void ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster);
+Eigen::Matrix4f ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster);
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr segmentPlane(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, double dist_thresh=0.01, int max_iterations=1000);
 

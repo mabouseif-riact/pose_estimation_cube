@@ -48,7 +48,7 @@ pcl::visualization::PCLVisualizer::Ptr normalVis(pcl::PointCloud<pcl::PointXYZ>:
 }
 
 
-void addCloudToVisualizer(pcl::visualization::PCLVisualizer::Ptr viewer,
+void addCloudWithNormalsToVisualizer(pcl::visualization::PCLVisualizer::Ptr viewer,
                                                             pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
                                                             pcl::PointCloud<pcl::Normal>::ConstPtr normals,
                                                             bool display_normals,
@@ -65,6 +65,19 @@ void addCloudToVisualizer(pcl::visualization::PCLVisualizer::Ptr viewer,
 }
 
 
+void addCloudToVisualizer(pcl::visualization::PCLVisualizer::Ptr viewer,
+                                                            pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
+                                                            int color_vec[3],
+                                                            std::string cloud_name)
+{
+    static int count = 1;
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(cloud, color_vec[0], color_vec[1], color_vec[2]);
+    viewer->addPointCloud(cloud, single_color, "Sample cloud with color " + cloud_name);
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.0, "Sample cloud with color " + cloud_name);
+
+    ++count;
+}
+
 
 void viewCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string viewer_name)
 {
@@ -74,7 +87,7 @@ void viewCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string viewer_nam
     int c1[3] = {255, 0, 255};
     int c2[3] = {255, 0, 0};
     int c3[3] = {255, 255, 0};
-    addCloudToVisualizer(viewer, cloud, normal_cloud, false, c1);
+    addCloudWithNormalsToVisualizer(viewer, cloud, normal_cloud, false, c1);
     // addCloudToVisualizer(viewer, cloud_cluster, cluster_normals, false, c2);
     // addCloudToVisualizer(viewer, aligned_cloud, cluster_normals, false, c3);
     viewer->addCoordinateSystem (0.1, "global", 0);
