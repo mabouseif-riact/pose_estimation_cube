@@ -41,7 +41,9 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr segmentPlane(pcl::PointCloud<pcl::PointXYZ>:
 
 
 
-Eigen::Matrix4f ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster)
+double ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned,
+                    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster,
+                    Eigen::Matrix4f icp_transform)
 {
   // The Iterative Closest Point algorithm
     int iterations = 100;
@@ -65,12 +67,16 @@ Eigen::Matrix4f ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned, pcl
         auto transformation_matrix = icp.getFinalTransformation (); // .cast<double>();
         // pcl::transformPointCloud(*object_aligned, *object_aligned, transformation_matrix);
         // print4x4Matrix (transformation_matrix);
-        return transformation_matrix;
+        icp_transform = transformation_matrix;
     }
     else
     {
         PCL_ERROR ("\nICP has not converged.\n");
-        return Eigen::Matrix4f::Identity();
+        icp_transform = Eigen::Matrix4f::Identity();
     }
+
+    double fitness_score = icp.getFitnessScore();
+
+    return fitness_score;
 
 }
