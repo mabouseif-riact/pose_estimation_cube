@@ -190,6 +190,27 @@ pcl::PointCloud<pcl::VFHSignature308>::Ptr computeOURCVFH(pcl::PointCloud<pcl::P
     return ourcvfhs;
 }
 
+
+pcl::PointCloud<pcl::VFHSignature308>::Ptr computeVFHBasedDescriptor(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
+                                                                     pcl::PointCloud<pcl::Normal>::ConstPtr normals, 
+                                                                     std::string descriptor_name)
+{
+
+
+    if (descriptor_name == "VFH")
+        return computeVFH(cloud, normals);
+    else if (descriptor_name == "CVFH")
+        return computeCVFH(cloud, normals);
+    else if (descriptor_name == "OURCVFH")
+        return computeOURCVFH(cloud, normals);
+    else
+    {
+        std::cout << "Descriptor name is invalid" << std::endl;
+        exit(-1);
+    }
+}
+
+
 pcl::PointCloud<pcl::Histogram <135> >::Ptr computeROPS(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud)
 {
     float support_radius = 0.005f;

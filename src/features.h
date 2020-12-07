@@ -49,3 +49,7 @@ alignCRHTransforms(pcl::PointCloud<pcl::PointXYZ>::Ptr viewCloud,
                   pcl::PointCloud<pcl::PointXYZ>::Ptr clusterCloud,
                   pcl::PointCloud<pcl::Normal>::Ptr viewNormals,
                   pcl::PointCloud<pcl::Normal>::Ptr clusterNormals);
+
+pcl::PointCloud<pcl::VFHSignature308>::Ptr computeVFHBasedDescriptor(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud,
+                                                                     pcl::PointCloud<pcl::Normal>::ConstPtr normals, 
+                                                                     std::string descriptor_name);
