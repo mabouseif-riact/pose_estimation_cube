@@ -298,7 +298,7 @@ int countInliers(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl:
     int k_neighbours_found;
     // double eps = 0.00000000001;
     // tree->setEpsilon(eps);
-    double thresh = 0.00001;
+    double thresh = 0.01; // 0.0005; // 0.00001
 
 
 

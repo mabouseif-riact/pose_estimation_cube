@@ -304,7 +304,7 @@ int main(int argc, char* argv[])
 
         std::map<float, std::string> top_candidates_map;
         std::pair<float, std::string> top_pair;
-        std::map<float, candidateDictionary> transform_lookup;
+        std::map<double, candidateDictionary> transform_lookup;
         pcl::PointCloud<pcl::VFHSignature308>::Ptr cloud_cluster_features (new pcl::PointCloud<pcl::VFHSignature308>);
 
         for (pcl::PointIndices indices: cluster_indices)
@@ -515,11 +515,12 @@ int main(int argc, char* argv[])
                     pcl::transformPointCloud(*cloud_xyz_ptr, *aligned_cloud, final_transform);
 
                     Eigen::Matrix4f icp_transform;
+                    double fitness_score = DBL_MAX;
 
                     if (icp)
                     {
                         pcl::ScopeTime("ICP");
-                        icp_transform = ICP(cloud_cluster, aligned_cloud);
+                        fitness_score = ICP(cloud_cluster, aligned_cloud, icp_transform);
                     }
                     else
                     {
@@ -541,7 +542,8 @@ int main(int argc, char* argv[])
                     temp_dict.view_frame_transform = temp_dict.transform * temp_dict.view_frame_transform.inverse();
                     temp_dict.cloud_name = cloud_name;
 
-                    transform_lookup.insert(std::pair<float, candidateDictionary>(inliers_percentage, temp_dict));
+                    // transform_lookup.insert(std::pair<float, candidateDictionary>(inliers_percentage, temp_dict));
+                    transform_lookup.insert(std::pair<double, candidateDictionary>(fitness_score, temp_dict));
 
 
                     // // Visualizer
@@ -569,22 +571,31 @@ int main(int argc, char* argv[])
 
         }
 
-        std::cout << "Transform lookup size: " << transform_lookup.size() << std::endl;
-        std::cout << "cloud name at index 0: " << std::prev(transform_lookup.end())->second.cloud_name << std::endl;
-        for (auto item: transform_lookup)
-            std::cout << item.first << std::endl;
-        for (auto item: transform_lookup)
-            std::cout << (item.second).cloud_name << std::endl;
+        // std::cout << "Transform lookup size: " << transform_lookup.size() << std::endl;
+        // std::cout << "cloud name at index 0: " << std::prev(transform_lookup.end())->second.cloud_name << std::endl;
+        // for (auto item: transform_lookup)
+        //     std::cout << item.first << std::endl;
+        // for (auto item: transform_lookup)
+        //     std::cout << (item.second).cloud_name << std::endl;
+
+        // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_xyz_ptr(new pcl::PointCloud<pcl::PointXYZ>);
+        // if (pcl::io::loadPCDFile (pcd_dir_name + "/" + std::prev(transform_lookup.end())->second.cloud_name + ".pcd", *cloud_xyz_ptr) == -1)
+        // {
+        //     std::cout << "Could not read top candidate. Exit.." << std::endl;
+        //     exit(-1);
+        // }
+
+
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_xyz_ptr(new pcl::PointCloud<pcl::PointXYZ>);
-        if (pcl::io::loadPCDFile (pcd_dir_name + "/" + std::prev(transform_lookup.end())->second.cloud_name + ".pcd", *cloud_xyz_ptr) == -1)
+        if (pcl::io::loadPCDFile (pcd_dir_name + "/" + transform_lookup.begin()->second.cloud_name + ".pcd", *cloud_xyz_ptr) == -1)
         {
             std::cout << "Could not read top candidate. Exit.." << std::endl;
             exit(-1);
         }
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-        pcl::transformPointCloud(*cloud_xyz_ptr, *aligned_cloud, std::prev(transform_lookup.end())->second.transform);
+        pcl::transformPointCloud(*cloud_xyz_ptr, *aligned_cloud, transform_lookup.begin()->second.transform);
 
         // if (icp)
         // {
@@ -601,9 +612,9 @@ int main(int argc, char* argv[])
         addCloudToVisualizer(viewer, scene, c1, "Scene");
         addCloudToVisualizer(viewer, aligned_cloud, c3, "Aligned");
         viewer->addCoordinateSystem (0.1, "global", 0);
-        viewer->addCoordinateSystem (0.1, std::prev(transform_lookup.end())->second.view_frame_transform(0, 3),
-                                          std::prev(transform_lookup.end())->second.view_frame_transform(1, 3),
-                                          std::prev(transform_lookup.end())->second.view_frame_transform(2, 3));
+        viewer->addCoordinateSystem (0.1, transform_lookup.begin()->second.view_frame_transform(0, 3),
+                                          transform_lookup.begin()->second.view_frame_transform(1, 3),
+                                          transform_lookup.begin()->second.view_frame_transform(2, 3));
 
         while (!viewer->wasStopped())
         {

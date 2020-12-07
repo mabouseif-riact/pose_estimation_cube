@@ -248,9 +248,11 @@ int main(int argc, char* argv[])
         //                            object,
         //                            cloud_cluster_features,
         //                            object_normals);
+
+        Eigen::Matrix4f m;
         pcl::PointCloud<pcl::PointXYZ>::Ptr object_aligned(new pcl::PointCloud<pcl::PointXYZ>);
         *object_aligned = *object;
-        ICP(object_aligned, cloud_cluster);
+        ICP(object_aligned, cloud_cluster, m);
 
 
         double th = 100;
