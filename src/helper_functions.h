@@ -12,6 +12,10 @@
 #include <pcl/surface/mls.h>
 #include <string.h>
 #include <algorithm>
+#include <flann/flann.h>
+#include <flann/io/hdf5.h>
+
+typedef std::pair<int, std::vector<float>> vfh_model;
 
 
 void passthroughFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, char* field, double min_val, double max_val);
@@ -45,3 +49,12 @@ void deleteDirectoryContents(const std::string& dir_path);
 std::vector<int> readVectorFromFile(std::string filename);
 
 void writeVectorToFile(std::string filename, const std::vector<int>& myVector);
+
+void populateFeatureVector(const pcl::PointCloud<pcl::VFHSignature308>::ConstPtr descriptor_cloud,
+       std::vector<vfh_model>& all_models,
+       int pose_idx);
+
+void convertToFLANN(std::vector<vfh_model> m,
+                    std::string training_data_h5_file_name,
+                    std::string kdtree_idx_file_name,
+                    std::string view_names_vec_file);

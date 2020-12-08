@@ -298,7 +298,7 @@ int countInliers(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl:
     int k_neighbours_found;
     // double eps = 0.00000000001;
     // tree->setEpsilon(eps);
-    double thresh = 0.01; // 0.0005; // 0.00001
+    double thresh = 0.00005; // 0.0005; // 0.00001
 
 
 
@@ -334,6 +334,9 @@ void deleteDirectoryContents(const std::string& dir_path)
 
 void writeVectorToFile(std::string filename, const std::vector<int>& myVector)
 {
+    if (std::experimental::filesystem::exists(filename))
+        std::remove(filename.c_str());
+
     std::ofstream ofs(filename, std::ios::out | std::ofstream::binary);
     std::ostream_iterator<double> osi{ofs," "};
     std::copy(myVector.begin(), myVector.end(), osi);
@@ -347,4 +350,66 @@ std::vector<int> readVectorFromFile(std::string filename)
     std::istream_iterator<int> end{};
     std::copy(iter, end, std::back_inserter(newVector));
     return newVector;
+}
+
+
+void populateFeatureVector(const pcl::PointCloud<pcl::VFHSignature308>::ConstPtr descriptor_cloud,
+       std::vector<vfh_model>& all_models,
+       int pose_idx)
+{
+    int histogram_size = sizeof(descriptor_cloud->points[0].histogram) / sizeof(descriptor_cloud->points[0].histogram[0]);
+    std::cout << "Histogram size: " << histogram_size << std::endl;
+
+    for (auto &point: *descriptor_cloud)
+    {
+        vfh_model m;
+        m.first = pose_idx + 1; // By adding 1 to the pose index, we get the file name
+        m.second.resize(histogram_size);
+        for (int i = 0; i < histogram_size; ++i)
+            m.second.at(i) = point.histogram[i];
+        all_models.push_back(m);
+    }
+
+    std::cout << "all_models size: " << all_models.size() << std::endl;
+}
+
+
+void convertToFLANN(std::vector<vfh_model> m,
+                    std::string training_data_h5_file_name,
+                    std::string kdtree_idx_file_name,
+                    std::string view_names_vec_file)
+{
+    // Convert data into FLANN format
+    int n_train = m.size();
+    int descriptor_size = 308; // VFH
+    flann::Matrix<float> data (new float[n_train * descriptor_size], n_train, descriptor_size);
+
+    // Populate FLANN matrix with histograms
+    std::vector<int> view_files;
+    view_files.resize(n_train);
+    for (size_t i = 0; i < n_train; ++i)
+    {
+        view_files.at(i) = m[i].first;
+        for (int j = 0; j < descriptor_size; ++j)
+            data[i][j] = m[i].second[j];
+    }
+
+    writeVectorToFile(view_names_vec_file, view_files);
+
+
+    if (std::experimental::filesystem::exists(training_data_h5_file_name))
+        std::remove(training_data_h5_file_name.c_str());
+
+    if (std::experimental::filesystem::exists(kdtree_idx_file_name))
+        std::remove(kdtree_idx_file_name.c_str());
+
+    // Save data to disk (list of models)
+    flann::save_to_file (data, training_data_h5_file_name, "training_data");
+    // Build the tree index and save it to disk
+    pcl::console::print_error ("Building the kdtree index (%s) for %d elements...\n", kdtree_idx_file_name.c_str (), (int)data.rows);
+    flann::Index<flann::ChiSquareDistance<float>> index (data, flann::LinearIndexParams());
+    //flann::Index<flann::ChiSquareDistance<float> > index (data, flann::KDTreeIndexParams (4));
+    index.buildIndex();
+    index.save(kdtree_idx_file_name);
+    delete[] data.ptr();
 }
