@@ -18,6 +18,7 @@
 #include <pcl/io/obj_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/console/parse.h>
+#include <pcl/registration/correspondence_estimation.h>
 #include <map>
 
 
@@ -66,6 +67,31 @@ Eigen::Matrix4f getCloudTransform(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
     0,                    0,                    0,                    1;
 
     return transform;
+}
+
+
+int countInliersCE(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr view)
+{
+    pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ> est;
+    est.setInputSource (cloud);
+    est.setInputTarget (view);
+
+    pcl::Correspondences all_correspondences;
+    double thresh = 0.01;
+    // Determine all reciprocal correspondences
+    est.determineReciprocalCorrespondences (all_correspondences, thresh);
+
+    int n_inliers = all_correspondences.size();
+    std::cout << "Number of inliers based on CE is: " << n_inliers << std::endl;
+
+    double total_dist = 0;
+    for (auto& c: all_correspondences)
+        total_dist += c.distance;
+    std::cout << "Total distance error for reciprocal correspondences: " << total_dist << std::endl;
+
+
+    return n_inliers;
+
 }
 
 
@@ -318,9 +344,8 @@ int main(int argc, char* argv[])
         std::cout << "cluster_indices size: " << cluster_indices.size() << std::endl;
 
 
-        std::map<float, std::string> top_candidates_map;
-        std::pair<float, std::string> top_pair;
-        std::map<double, candidateDictionary> transform_lookup;
+        std::multimap<double, candidateDictionary> transform_lookup_fitness;
+        std::multimap<double, candidateDictionary> transform_lookup_inliers;
         pcl::PointCloud<pcl::VFHSignature308>::Ptr cloud_cluster_features (new pcl::PointCloud<pcl::VFHSignature308>);
 
         for (pcl::PointIndices indices: cluster_indices)
@@ -468,16 +493,6 @@ int main(int argc, char* argv[])
                     std::cout << "Resolution of candidate cloud is " << computeCloudResolution(cloud_xyz_ptr) << std::endl;
 
                     pcl::PointCloud<pcl::Normal>::Ptr view_normals = computeNormals(cloud_xyz_ptr, false, 0.01);
-                    // std::vector<float> angles = alignCRHAngles(cloud_xyz_ptr, cloud_cluster, view_normals, cluster_normals);
-                    // float best_roll_angle = angles.at(0);
-
-                    // Eigen::Matrix4f roll_transform;
-                    // float sin_roll = std::sin(best_roll_angle);
-                    // float cos_roll = std::cos(best_roll_angle);
-                    // roll_transform << cos_roll, -sin_roll, 0, 0,
-                    //                   sin_roll, cos_roll,  0, 0,
-                    //                   0,        0,         1, 0,
-                    //                   0,        0,         0, 1;
 
                     Eigen::Matrix4f final_transform;
                     candidateDictionary temp_dict;
@@ -498,11 +513,6 @@ int main(int argc, char* argv[])
 
                         Eigen::Vector4f viewCentroid;
                         pcl::compute3DCentroid(*cloud_xyz_ptr, viewCentroid);
-
-                        // T_cen <<           1, 0, 0, ourcvfh_centroids.at(j)[0] - viewCentroid[0],
-                        //                    0, 1, 0, ourcvfh_centroids.at(j)[1] - viewCentroid[1],
-                        //                    0, 0, 1, ourcvfh_centroids.at(j)[2] - viewCentroid[2],
-                        //                    0,        0,         0, 1;
 
                         T_cen <<           1, 0, 0, cloud_cluster_centroid[0] - viewCentroid[0],
                                            0, 1, 0, cloud_cluster_centroid[1] - viewCentroid[1],
@@ -543,19 +553,6 @@ int main(int argc, char* argv[])
                         icp_transform = Eigen::Matrix4f::Identity();
                     }
 
-                    // Eigen::Matrix4f icp_transform(getCloudTransform(aligned_cloud));
-
-                    // if (icp)
-                    // {
-                    //     pcl::ScopeTime("ICP");
-                    //     icp_transform = ICP(cloud_cluster, aligned_cloud);
-                    // }
-                    // else
-                    // {
-                    //     icp_transform = Eigen::Matrix4f::Identity();
-                    // }
-
-
                     int view_size = cloud_xyz_ptr->width * cloud_xyz_ptr->height;
                     int inliers =  countInliers(cloud_cluster, aligned_cloud);
                     double inliers_percentage = static_cast<double>(inliers) / static_cast<double>(view_size);
@@ -564,39 +561,24 @@ int main(int argc, char* argv[])
                     std::cout << "Percentage of inliers: " << inliers_percentage << std::endl;
 
 
+                    int inliers_CE = countInliersCE(cloud_cluster, aligned_cloud);
+                    double inliers_percentage_CE = static_cast<double>(inliers_CE) / static_cast<double>(view_size);
+                    std::cout << "Percentage of inliers CE: " << inliers_percentage_CE << std::endl;
+
                     temp_dict.transform = align_transform.inverse() * icp_transform * final_transform;
                     temp_dict.view_frame_transform = temp_dict.transform * temp_dict.view_frame_transform.inverse();
                     temp_dict.cloud_name = cloud_name;
 
                     // fitness_score += ((view_size - inliers) - inliers) * 1e-6;
-                    // fitness_score -= (inliers) * 1e-5;
-                    // fitness_score = 0.01 * ((view_size - inliers)/(inliers+ 0.0001) ); // best
-                    fitness_score += 0.001 * ((view_size - inliers)/(inliers+ 0.0001) ); // best
-
-                    if (criterion == "inliers")
-                        transform_lookup.insert(std::pair<float, candidateDictionary>(inliers_percentage, temp_dict));
-                    else if (criterion == "fitness")
-                        transform_lookup.insert(std::pair<double, candidateDictionary>(fitness_score, temp_dict));
+                    fitness_score -= (inliers_percentage) * fitness_score;
+                    // fitness_score += 0.001 * ((view_size - inliers)/(inliers+ 0.0001) ); // best
+                    // fitness_score += 0.0001 * ((view_size - inliers)/(inliers+ 0.0001) ); // best
 
 
-                    // // Visualizer
-                    // pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer ("Aligned"));
-                    // viewer->setBackgroundColor(0, 0, 0);
-                    // int c1[3] = {255, 0, 255};
-                    // int c2[3] = {255, 0, 0};
-                    // int c3[3] = {255, 255, 0};
-                    // addCloudWithNormalsToVisualizer(viewer, cloud_xyz_ptr, view_normals, false, c1);
-                    // addCloudWithNormalsToVisualizer(viewer, cloud_cluster, cluster_normals, false, c2);
-                    // addCloudWithNormalsToVisualizer(viewer, aligned_cloud, cluster_normals, false, c3);
-                    // viewer->addCoordinateSystem (0.1, "global", 0);
+                    // transform_lookup_inliers.insert(std::pair<double, candidateDictionary>(inliers_percentage, temp_dict));
+                    transform_lookup_inliers.insert(std::pair<double, candidateDictionary>(inliers_percentage_CE, temp_dict));
+                    transform_lookup_fitness.insert(std::pair<double, candidateDictionary>(fitness_score, temp_dict));
 
-                    // while (!viewer->wasStopped())
-                    // {
-                    // // passthroughFilter(scene, "x", static_cast<double>(a) / 10.0, 0.15);
-                    // viewer->spinOnce(100);
-                    // std::this_thread::sleep_for(50ms);
-                    // cv::waitKey(1);
-                    // }
 
                 }
                 std::cout << "Done showing all neighbours" << std::endl;
@@ -604,78 +586,71 @@ int main(int argc, char* argv[])
 
         }
 
-        // std::cout << "Transform lookup size: " << transform_lookup.size() << std::endl;
-        // std::cout << "cloud name at index 0: " << std::prev(transform_lookup.end())->second.cloud_name << std::endl;
-        for (auto item: transform_lookup)
-            std::cout << item.first << std::endl;
-        for (auto item: transform_lookup)
-            std::cout << (item.second).cloud_name << std::endl;
+        // Print out score and inlier percentages
+        for (auto item: transform_lookup_inliers)
+            std::cout << "Inliers criterion candidate: " << (item.second).cloud_name << ", inliers %: " << item.first * 100.0 << std::endl;
+        std::cout << std::endl;
+        for (auto item: transform_lookup_fitness)
+            std::cout << "Fitness criterion candidate: " << (item.second).cloud_name << ", score: " << item.first << std::endl;
 
+
+        // Visualization
         pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer ("Aligned"));
 
-
-        if (criterion == "fitness")
+        pcl::PointCloud<pcl::PointXYZ>::Ptr candidate_cloud_inliers_ptr(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr candidate_cloud_fitness_ptr(new pcl::PointCloud<pcl::PointXYZ>);
+        if (pcl::io::loadPCDFile (pcd_dir_name + "/" + transform_lookup_inliers.rbegin()->second.cloud_name + ".pcd", *candidate_cloud_inliers_ptr) == -1)
         {
-            pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_xyz_ptr(new pcl::PointCloud<pcl::PointXYZ>);
-            if (pcl::io::loadPCDFile (pcd_dir_name + "/" + transform_lookup.begin()->second.cloud_name + ".pcd", *cloud_xyz_ptr) == -1)
-            {
-                std::cout << "Could not read top candidate. Exit.." << std::endl;
-                exit(-1);
-            }
-
-            pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-            pcl::transformPointCloud(*cloud_xyz_ptr, *aligned_cloud, transform_lookup.begin()->second.transform);
-
-            // Visualizer
-
-            viewer->setBackgroundColor(0, 0, 0);
-            int c1[3] = {255, 0, 255};
-            int c2[3] = {255, 0, 0};
-            int c3[3] = {255, 255, 0};
-            addCloudToVisualizer(viewer, scene, c1, "Scene");
-            addCloudToVisualizer(viewer, aligned_cloud, c3, "Aligned");
-            viewer->addCoordinateSystem (0.1, "global", 0);
-            viewer->addCoordinateSystem (0.1, transform_lookup.begin()->second.view_frame_transform(0, 3),
-                                              transform_lookup.begin()->second.view_frame_transform(1, 3),
-                                              transform_lookup.begin()->second.view_frame_transform(2, 3));
+            std::cout << "Could not read top inliers candidate. Exit.." << std::endl;
+            exit(-1);
         }
-        else if (criterion == "inliers")
+        if (pcl::io::loadPCDFile (pcd_dir_name + "/" + transform_lookup_fitness.begin()->second.cloud_name + ".pcd", *candidate_cloud_fitness_ptr) == -1)
         {
-            pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_xyz_ptr(new pcl::PointCloud<pcl::PointXYZ>);
-            if (pcl::io::loadPCDFile (pcd_dir_name + "/" + std::prev(transform_lookup.end())->second.cloud_name + ".pcd", *cloud_xyz_ptr) == -1)
-            {
-                std::cout << "Could not read top candidate. Exit.." << std::endl;
-                exit(-1);
-            }
-
-            pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-            pcl::transformPointCloud(*cloud_xyz_ptr, *aligned_cloud, std::prev(transform_lookup.end())->second.transform);
-
-            // if (icp)
-            // {
-            //     pcl::ScopeTime("ICP final");
-            //     ICP(scene, aligned_cloud);
-            // }
-
-            // Visualizer
-            viewer->setBackgroundColor(0, 0, 0);
-            int c1[3] = {255, 0, 255};
-            int c2[3] = {255, 0, 0};
-            int c3[3] = {255, 255, 0};
-            addCloudToVisualizer(viewer, scene, c1, "Scene");
-            addCloudToVisualizer(viewer, aligned_cloud, c3, "Aligned");
-            viewer->addCoordinateSystem (0.1, "global", 0);
-            viewer->addCoordinateSystem (0.1, std::prev(transform_lookup.end())->second.view_frame_transform(0, 3),
-                                              std::prev(transform_lookup.end())->second.view_frame_transform(1, 3),
-                                              std::prev(transform_lookup.end())->second.view_frame_transform(2, 3));
+            std::cout << "Could not read top fitness candidate. Exit.." << std::endl;
+            exit(-1);
         }
+
+        pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud_inliers(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud_fitness(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::transformPointCloud(*candidate_cloud_inliers_ptr, *aligned_cloud_inliers, transform_lookup_inliers.rbegin()->second.transform);
+        pcl::transformPointCloud(*candidate_cloud_fitness_ptr, *aligned_cloud_fitness, transform_lookup_fitness.begin()->second.transform);
+
+
+        // Visualizer
+
+
+        int c1[3] = {255, 0, 255};
+        int c2[3] = {255, 0, 0};
+        int c3[3] = {255, 255, 0};
+
+        int v1(0);
+        viewer->createViewPort(0.0, 0.0, 0.5, 1.0, v1);
+        viewer->setBackgroundColor (0, 0, 0, v1);
+        viewer->addText("Candidate: " + transform_lookup_inliers.rbegin()->second.cloud_name + ", inliers %: " + std::to_string(transform_lookup_inliers.rbegin()->first * 100.0), 10, 10, "v1 text", v1);
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> scene_color(scene, c1[0], c1[1], c1[2]);
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> aligned_inliers_color(aligned_cloud_fitness, c3[0], c3[1], c3[2]);
+        viewer->addPointCloud<pcl::PointXYZ> (aligned_cloud_inliers, aligned_inliers_color, "sample cloud1", v1);
+        viewer->addPointCloud<pcl::PointXYZ> (scene, scene_color, "sample cloud1 scene", v1);
+
+        int v2(0);
+        viewer->createViewPort(0.5, 0.0, 1.0, 1.0, v2);
+        viewer->setBackgroundColor (0.3, 0.3, 0.3, v2);
+        viewer->addText("Candidate: " + transform_lookup_fitness.begin()->second.cloud_name + ", score : " + std::to_string(transform_lookup_fitness.begin()->first), 10, 10, "v2 text", v2);
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> aligned_fitness_color(aligned_cloud_fitness, c3[0], c3[1], c3[2]);
+        viewer->addPointCloud<pcl::PointXYZ> (aligned_cloud_fitness, aligned_fitness_color, "sample cloud2", v2);
+        viewer->addPointCloud<pcl::PointXYZ> (scene, scene_color, "sample cloud2 scene", v2);
+
+        viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "sample cloud1");
+        viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud1 scene");
+        viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "sample cloud2");
+        viewer->addCoordinateSystem (0.1);
+
 
         while (!viewer->wasStopped())
         {
-        // passthroughFilter(scene, "x", static_cast<double>(a) / 10.0, 0.15);
-        viewer->spinOnce(100);
-        std::this_thread::sleep_for(50ms);
-        cv::waitKey(1);
+            viewer->spinOnce(100);
+            std::this_thread::sleep_for(50ms);
+            cv::waitKey(1);
         }
 
 
