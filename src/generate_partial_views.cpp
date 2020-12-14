@@ -94,8 +94,8 @@ main(int argc, char** argv)
 
     // std::cout << views.at(0)->width * views.at(0)->height << std::endl;
 
-    // std::string base_dir = "/home/mohamed/turtle_test_link/pose_estimation_cube";
-    std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
+    std::string base_dir = "/home/mohamed/turtle_test_link/pose_estimation_cube";
+    // std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
     std::string pcd_dir_name = base_dir + "/data/views_";
     std::string poses_dir_name = base_dir + "/data/poses";
     std::string CRH_dir_name = base_dir + "/data/CRH";

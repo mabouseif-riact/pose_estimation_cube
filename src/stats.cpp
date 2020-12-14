@@ -210,7 +210,7 @@ int main(int argc, char* argv[])
     parseCommandLine (argc, argv);
 
 
-    for (auto& dirEntry : std::experimental::filesystem::directory_iterator("/home/mohamed/Downloads/scenes-20201201T111641Z-001/scenes"))
+    for (auto& dirEntry : std::experimental::filesystem::directory_iterator("/home/mohamed/Desktop/new"))
     {
         if (pcl::io::loadPLYFile(dirEntry.path().c_str(), *scene) == -1)
         {
@@ -224,8 +224,8 @@ int main(int argc, char* argv[])
 
 
         // Paths
-        // std::string base_dir = "/home/mohamed/turtle_test_link/pose_estimation_cube";
-        std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
+        std::string base_dir = "/home/mohamed/turtle_test_link/pose_estimation_cube";
+        // std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
         std::string pcd_dir_name = base_dir + "/data/views_";
         std::string poses_dir_name = base_dir + "/data/poses";
         std::string CRH_dir_name = base_dir + "/data/CRH";
@@ -591,6 +591,7 @@ int main(int argc, char* argv[])
             viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "sample cloud1");
             viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud1 scene");
             viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "sample cloud2");
+            viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "sample cloud2 scene");
             viewer->addCoordinateSystem (0.1);
 
 
