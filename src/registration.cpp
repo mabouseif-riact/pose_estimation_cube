@@ -41,6 +41,42 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr segmentPlane(pcl::PointCloud<pcl::PointXYZ>:
 
 
 
+// Eigen::Matrix4f ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster)
+// {
+//   // The Iterative Closest Point algorithm
+//     int iterations = 100;
+//     // time.tic ();
+//     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+//     icp.setMaximumIterations (iterations);
+//     icp.setEuclideanFitnessEpsilon(0.0005);
+//     icp.setMaxCorrespondenceDistance(0.01);
+//     std::cout << "ICP using setEuclideanFitnessEpsilon for termination" << std::endl;
+//     icp.setInputSource (cloud_cluster);
+//     icp.setInputTarget (object_aligned);
+//     {
+//         pcl::ScopeTime t("ICP Alignment");
+//         icp.align (*cloud_cluster);
+//     }
+
+//     if (icp.hasConverged ())
+//     {
+//         std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
+//         std::cout << "\nICP transformation " << iterations << " : Scene -> Object" << std::endl;
+//         auto transformation_matrix = icp.getFinalTransformation (); // .cast<double>();
+//         // pcl::transformPointCloud(*object_aligned, *object_aligned, transformation_matrix);
+//         // print4x4Matrix (transformation_matrix);
+//         return transformation_matrix;
+//     }
+//     else
+//     {
+//         PCL_ERROR ("\nICP has not converged.\n");
+//         return Eigen::Matrix4f::Identity();
+//     }
+
+// }
+
+
+
 Eigen::Matrix4f ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster)
 {
   // The Iterative Closest Point algorithm
@@ -50,30 +86,64 @@ Eigen::Matrix4f ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned, pcl
     icp.setMaximumIterations (iterations);
     icp.setEuclideanFitnessEpsilon(0.0005);
     icp.setMaxCorrespondenceDistance(0.01);
-    std::cout << "ICP using setEuclideanFitnessEpsilon for termination" << std::endl;
     icp.setInputSource (cloud_cluster);
     icp.setInputTarget (object_aligned);
-    {
-        pcl::ScopeTime t("ICP Alignment");
-        icp.align (*cloud_cluster);
-    }
+
+    icp.align (*cloud_cluster);
 
     if (icp.hasConverged ())
     {
-        std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
-        std::cout << "\nICP transformation " << iterations << " : Scene -> Object" << std::endl;
         auto transformation_matrix = icp.getFinalTransformation (); // .cast<double>();
-        // pcl::transformPointCloud(*object_aligned, *object_aligned, transformation_matrix);
-        // print4x4Matrix (transformation_matrix);
         return transformation_matrix;
     }
     else
     {
-        PCL_ERROR ("\nICP has not converged.\n");
         return Eigen::Matrix4f::Identity();
     }
 
 }
+
+
+// double ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned,
+//                     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster,
+//                     Eigen::Matrix4f& icp_transform)
+// {
+//   // The Iterative Closest Point algorithm
+//     int iterations = 100;
+//     // time.tic ();
+//     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+//     icp.setMaximumIterations (iterations);
+//     icp.setEuclideanFitnessEpsilon(0.0005);
+//     icp.setMaxCorrespondenceDistance(0.01);
+//     std::cout << "ICP using setEuclideanFitnessEpsilon for termination" << std::endl;
+//     icp.setInputSource (cloud_cluster);
+//     icp.setInputTarget (object_aligned);
+//     {
+//         pcl::ScopeTime t("ICP Alignment");
+//         icp.align (*cloud_cluster);
+//     }
+
+//     if (icp.hasConverged ())
+//     {
+//         std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
+//         std::cout << "\nICP transformation " << iterations << " : Scene -> Object" << std::endl;
+//         auto transformation_matrix = icp.getFinalTransformation (); // .cast<double>();
+//         // pcl::transformPointCloud(*object_aligned, *object_aligned, transformation_matrix);
+//         // print4x4Matrix (transformation_matrix);
+//         icp_transform = transformation_matrix;
+//     }
+//     else
+//     {
+//         PCL_ERROR ("\nICP has not converged.\n");
+//         icp_transform = Eigen::Matrix4f::Identity();
+//     }
+
+//     double fitness_score = icp.getFitnessScore();
+
+//     return fitness_score;
+
+// }
+
 
 
 
@@ -88,26 +158,18 @@ double ICP(pcl::PointCloud<pcl::PointXYZ>::ConstPtr object_aligned,
     icp.setMaximumIterations (iterations);
     icp.setEuclideanFitnessEpsilon(0.0005);
     icp.setMaxCorrespondenceDistance(0.01);
-    std::cout << "ICP using setEuclideanFitnessEpsilon for termination" << std::endl;
     icp.setInputSource (cloud_cluster);
     icp.setInputTarget (object_aligned);
-    {
-        pcl::ScopeTime t("ICP Alignment");
+
         icp.align (*cloud_cluster);
-    }
 
     if (icp.hasConverged ())
     {
-        std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
-        std::cout << "\nICP transformation " << iterations << " : Scene -> Object" << std::endl;
         auto transformation_matrix = icp.getFinalTransformation (); // .cast<double>();
-        // pcl::transformPointCloud(*object_aligned, *object_aligned, transformation_matrix);
-        // print4x4Matrix (transformation_matrix);
         icp_transform = transformation_matrix;
     }
     else
     {
-        PCL_ERROR ("\nICP has not converged.\n");
         icp_transform = Eigen::Matrix4f::Identity();
     }
 

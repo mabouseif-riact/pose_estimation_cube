@@ -14,9 +14,33 @@
 #include <algorithm>
 #include <flann/flann.h>
 #include <flann/io/hdf5.h>
+#include <pcl/registration/correspondence_estimation.h>
 
 typedef std::pair<int, std::vector<float>> vfh_model;
 
+struct candidateDictionary
+{
+    std::string cloud_name;
+    Eigen::Matrix4f transform;
+    Eigen::Matrix4f view_frame_transform;
+};
+
+
+struct sceneResult
+{
+    std::string cloud_name_fitness, cloud_name_inliers, scene_name;
+    double score, inliers;
+
+    void print()
+    {
+        std::cout << this->scene_name << " "
+                  << this->score << " "
+                  << this->inliers << " "
+                  << this->cloud_name_inliers << " "
+                  << this->cloud_name_fitness << " " << std::endl;
+    }
+
+};
 
 void passthroughFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, char* field, double min_val, double max_val);
 
@@ -58,3 +82,7 @@ void convertToFLANN(std::vector<vfh_model> m,
                     std::string training_data_h5_file_name,
                     std::string kdtree_idx_file_name,
                     std::string view_names_vec_file);
+
+int countInliersCE(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr view);
+
+Eigen::Matrix4f getCloudTransform(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);

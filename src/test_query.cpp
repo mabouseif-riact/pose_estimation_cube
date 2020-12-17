@@ -45,56 +45,6 @@ std::string criterion;
 
 
 
-struct candidateDictionary
-{
-    std::string cloud_name;
-    Eigen::Matrix4f transform;
-    Eigen::Matrix4f view_frame_transform;
-};
-
-
-
-Eigen::Matrix4f getCloudTransform(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
-{
-    Eigen::Matrix4f transform;
-    Eigen::Matrix3f sensor_rotation( cloud->sensor_orientation_);
-    Eigen::Vector4f sensor_translation;
-    sensor_translation = cloud->sensor_origin_;
-    //Transformation from local object reference frame to kinect frame (as it was during database acquisition)
-    transform << sensor_rotation(0,0), sensor_rotation(0,1), sensor_rotation(0,2), sensor_translation(0),
-    sensor_rotation(1,0), sensor_rotation(1,1), sensor_rotation(1,2), sensor_translation(1),
-    sensor_rotation(2,0), sensor_rotation(2,1), sensor_rotation(2,2), sensor_translation(2),
-    0,                    0,                    0,                    1;
-
-    return transform;
-}
-
-
-int countInliersCE(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr view)
-{
-    pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ> est;
-    est.setInputSource (cloud);
-    est.setInputTarget (view);
-
-    pcl::Correspondences all_correspondences;
-    double thresh = 0.01;
-    // Determine all reciprocal correspondences
-    est.determineReciprocalCorrespondences (all_correspondences, thresh);
-
-    int n_inliers = all_correspondences.size();
-    std::cout << "Number of inliers based on CE is: " << n_inliers << std::endl;
-
-    double total_dist = 0;
-    for (auto& c: all_correspondences)
-        total_dist += c.distance;
-    std::cout << "Total distance error for reciprocal correspondences: " << total_dist << std::endl;
-
-
-    return n_inliers;
-
-}
-
-
 void
 showHelp (char *filename)
 {

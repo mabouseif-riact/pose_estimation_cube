@@ -18,7 +18,6 @@
 #include <pcl/io/obj_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/console/parse.h>
-#include <pcl/registration/correspondence_estimation.h>
 #include <map>
 
 using namespace std::chrono_literals;
@@ -41,55 +40,6 @@ bool icp = false;
 std::string criterion;
 
 
-
-struct candidateDictionary
-{
-    std::string cloud_name;
-    Eigen::Matrix4f transform;
-    Eigen::Matrix4f view_frame_transform;
-};
-
-
-
-Eigen::Matrix4f getCloudTransform(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
-{
-    Eigen::Matrix4f transform;
-    Eigen::Matrix3f sensor_rotation( cloud->sensor_orientation_);
-    Eigen::Vector4f sensor_translation;
-    sensor_translation = cloud->sensor_origin_;
-    //Transformation from local object reference frame to kinect frame (as it was during database acquisition)
-    transform << sensor_rotation(0,0), sensor_rotation(0,1), sensor_rotation(0,2), sensor_translation(0),
-    sensor_rotation(1,0), sensor_rotation(1,1), sensor_rotation(1,2), sensor_translation(1),
-    sensor_rotation(2,0), sensor_rotation(2,1), sensor_rotation(2,2), sensor_translation(2),
-    0,                    0,                    0,                    1;
-
-    return transform;
-}
-
-
-int countInliersCE(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr view)
-{
-    pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ> est;
-    est.setInputSource (cloud);
-    est.setInputTarget (view);
-
-    pcl::Correspondences all_correspondences;
-    double thresh = 0.01;
-    // Determine all reciprocal correspondences
-    est.determineReciprocalCorrespondences (all_correspondences, thresh);
-
-    int n_inliers = all_correspondences.size();
-    std::cout << "Number of inliers based on CE is: " << n_inliers << std::endl;
-
-    double total_dist = 0;
-    for (auto& c: all_correspondences)
-        total_dist += c.distance;
-    std::cout << "Total distance error for reciprocal correspondences: " << total_dist << std::endl;
-
-
-    return n_inliers;
-
-}
 
 
 void
@@ -209,8 +159,11 @@ int main(int argc, char* argv[])
 
     parseCommandLine (argc, argv);
 
+    sceneResult scene_res;
+    std::vector<sceneResult> scene_result_vec;
 
-    for (auto& dirEntry : std::experimental::filesystem::directory_iterator("/home/mohamed/Desktop/new"))
+
+    for (auto& dirEntry : std::experimental::filesystem::directory_iterator("/home/mohamed/Downloads/scenes_newest"))
     {
         if (pcl::io::loadPLYFile(dirEntry.path().c_str(), *scene) == -1)
         {
@@ -224,8 +177,8 @@ int main(int argc, char* argv[])
 
 
         // Paths
-        std::string base_dir = "/home/mohamed/turtle_test_link/pose_estimation_cube";
-        // std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
+        // std::string base_dir = "/home/mohamed/turtle_test_link/pose_estimation_cube";
+        std::string base_dir = "/home/mohamed/riact_ws/src/skiros2_examples/src/skiros2_examples/turtle_test/pose_estimation";
         std::string pcd_dir_name = base_dir + "/data/views_";
         std::string poses_dir_name = base_dir + "/data/poses";
         std::string CRH_dir_name = base_dir + "/data/CRH";
@@ -532,14 +485,22 @@ int main(int argc, char* argv[])
             }
 
             // Print out score and inlier percentages
-            for (auto item: transform_lookup_inliers)
-                std::cout << "Inliers criterion candidate: " << (item.second).cloud_name << ", inliers %: " << item.first * 100.0 << std::endl;
-            std::cout << std::endl;
-            for (auto item: transform_lookup_fitness)
-                std::cout << "Fitness criterion candidate: " << (item.second).cloud_name << ", score: " << item.first << std::endl;
+            // for (auto item: transform_lookup_inliers)
+            //     std::cout << "Inliers criterion candidate: " << (item.second).cloud_name << ", inliers %: " << item.first * 100.0 << std::endl;
+            // std::cout << std::endl;
+            // for (auto item: transform_lookup_fitness)
+            //     std::cout << "Fitness criterion candidate: " << (item.second).cloud_name << ", score: " << item.first << std::endl;
 
 
-            std::cout << "Scene: " << dirEntry.path().c_str() << std::endl;
+            // std::cout << "Scene: " << dirEntry.path().c_str() << std::endl;
+
+            scene_res.scene_name = dirEntry.path().c_str();
+            scene_res.cloud_name_inliers = transform_lookup_inliers.rbegin()->second.cloud_name;
+            scene_res.cloud_name_fitness = transform_lookup_fitness.begin()->second.cloud_name;
+            scene_res.inliers = (transform_lookup_inliers.rbegin()->first * 100.0); // std::to_string
+            scene_res.score = (transform_lookup_fitness.begin()->first); // std::to_string
+
+            scene_result_vec.push_back(scene_res);
 
 
             // Visualization
@@ -595,15 +556,27 @@ int main(int argc, char* argv[])
             viewer->addCoordinateSystem (0.1);
 
 
-            while (!viewer->wasStopped())
-            {
-                viewer->spinOnce(100);
-                std::this_thread::sleep_for(50ms);
-                cv::waitKey(1);
-            }
+            // while (!viewer->wasStopped())
+            // {
+            //     viewer->spinOnce(100);
+            //     std::this_thread::sleep_for(50ms);
+            //     cv::waitKey(1);
+            // }
+
+            viewer->spin();
+            std::this_thread::sleep_for(50ms);
 
 
         }
+    }
+
+    for (sceneResult& item: scene_result_vec)
+        item.print();
+
+    while (cv::waitKey(0))
+    {
+        std::this_thread::sleep_for(50ms);
+        cv::waitKey(1);
     }
 
     return 0;

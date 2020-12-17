@@ -16,7 +16,7 @@ configure_file(src/config.h.in src/config.h)
 # Find packages
 find_package(PCL 1.7.2 REQUIRED)
 find_package(OpenCV 3.2.0 REQUIRED)
-
+find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs)
 
 
 find_package(MPI REQUIRED)
@@ -28,6 +28,7 @@ set(LINK_FLAGS ${LINK_FLAGS} ${MPI_LINK_FLAGS})
 # Include directories
 include_directories(${PCL_INCLUDE_DIRS})
 include_directories(${OpenCV_INCLUDE_DIRS})
+include_directories(${catkin_INCLUDE_DIRS})
 
 # Link directories
 link_directories(${PCL_LIBRARY_DIRS})
@@ -46,6 +47,8 @@ add_executable(generate_partial_views src/generate_partial_views.cpp src/visuali
 add_executable(train src/train.cpp src/visualization.cpp src/features.cpp src/registration.cpp src/helper_functions.cpp)
 add_executable(test_query src/test_query.cpp src/visualization.cpp src/features.cpp src/registration.cpp src/helper_functions.cpp)
 add_executable(stats src/stats.cpp src/visualization.cpp src/features.cpp src/registration.cpp src/helper_functions.cpp)
+add_executable(listener src/listener.cpp src/visualization.cpp)
+add_executable(client src/client.cpp src/cameraClass.cpp src/PoseEstimatorClass.cpp src/visualization.cpp src/features.cpp src/registration.cpp src/helper_functions.cpp)
 
 # Target include directories (https://stackoverflow.com/questions/4225005/how-to-generate-a-header-in-source-with-cmake)
 target_include_directories(test_query PUBLIC
@@ -62,5 +65,7 @@ target_link_libraries(generate_partial_views ${PCL_LIBRARIES} ${OpenCV_LIBRARIES
 target_link_libraries(train ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${MPI_LIBRARIES} mpi_cxx pthread)
 target_link_libraries(test_query ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${MPI_LIBRARIES} mpi_cxx pthread)
 target_link_libraries(stats ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${MPI_LIBRARIES} mpi_cxx pthread)
+target_link_libraries(listener ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${MPI_LIBRARIES} ${catkin_LIBRARIES} mpi_cxx pthread)
+target_link_libraries(client ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${MPI_LIBRARIES} ${catkin_LIBRARIES} mpi_cxx pthread)
 
 
