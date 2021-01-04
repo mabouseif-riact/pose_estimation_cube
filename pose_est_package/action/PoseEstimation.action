@@ -1,0 +1,18 @@
+# This is an action definition file, which has three parts: the goal
+# the result, and the feedback.
+# Part 1: the goal.
+#
+# The pointcloud in PointCloud2 format, sent by client main
+sensor_msgs/PointCloud2 point_cloud
+---
+# Part 2: the result, sent by action server unpon completion
+#
+# The pose
+std_msgs/Float64MultiArray pose
+# How many updates thrown in total
+# uint32 updates_n
+---
+# Part 3: the feedback,to be sent periodically by server
+#
+# The amount of time elapsed from the start
+duration time_elapsed

@@ -1,0 +1,6 @@
+<launch>
+
+  <!-- a basic listener node -->
+  <node name="pose_estimation_client_node" pkg="pose_est_package" type="client" output="screen"/>
+
+</launch>
