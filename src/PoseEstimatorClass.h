@@ -43,5 +43,6 @@ class PoseEstimator
 
 public:
     PoseEstimator();
-    pcl::PointCloud<pcl::PointXYZ>::Ptr estimate(pcl::PointCloud<pcl::PointXYZ>::Ptr scene);
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr estimate(pcl::PointCloud<pcl::PointXYZ>::Ptr scene);
+    Eigen::Matrix4f estimate(pcl::PointCloud<pcl::PointXYZ>::Ptr scene);
 };

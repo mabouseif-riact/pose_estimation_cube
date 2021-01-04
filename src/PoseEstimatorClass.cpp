@@ -63,7 +63,7 @@ void PoseEstimator::loadParams()
 
 
 
-pcl::PointCloud<pcl::PointXYZ>::Ptr PoseEstimator::estimate(pcl::PointCloud<pcl::PointXYZ>::Ptr scene)
+Eigen::Matrix4f PoseEstimator::estimate(pcl::PointCloud<pcl::PointXYZ>::Ptr scene)
 {
 
     // pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Client Viewer"));
@@ -363,6 +363,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr PoseEstimator::estimate(pcl::PointCloud<pcl:
 
     std::cout << "Aligned cloud size: " << aligned_cloud_inliers->width * aligned_cloud_inliers->height << std::endl;
 
-    return aligned_cloud_inliers;
+    return transform_lookup_inliers.rbegin()->second.transform;
+    // return aligned_cloud_inliers;
 
 }

@@ -17,9 +17,9 @@ configure_file(src/config.h.in src/config.h)
 find_package(PCL 1.7.2 REQUIRED)
 find_package(OpenCV 3.2.0 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs)
-
-
 find_package(MPI REQUIRED)
+
+
 include_directories(${MPI_INCLUDE_PATH})
 set(COMPILE_FLAGS  ${COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
 set(LINK_FLAGS ${LINK_FLAGS} ${MPI_LINK_FLAGS})
